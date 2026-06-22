@@ -1,0 +1,179 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0d0d0d;
+  --fg: #e0e0e0;
+  --oled-bg: #050200;
+  --oled-fg: #ffb84d;
+  --oled-glow: rgba(255,184,77,0.3);
+  --accent: #ffb84d;
+  --btn-bg: #1e1e1e;
+  --btn-hover: #2e2e2e;
+  --panel-bg: #111;
+  --border: #2a2a2a;
+  --ok: #4caf50;
+  --warn: #ff9800;
+  --err: #f44336;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--panel-bg);
+  border-bottom: 1px solid var(--border);
+}
+header h1 { font-size: 18px; font-weight: 600; letter-spacing: 1px; }
+#conn-status {
+  display: flex; align-items: center; gap: 6px; font-size: 13px;
+}
+#conn-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--err); }
+#conn-dot.ok    { background: var(--ok); }
+#conn-dot.warn  { background: var(--warn); }
+
+/* ── OLED zone ───────────────────────────────────────────────────────────── */
+.oled-wrap {
+  position: relative;
+  background: var(--oled-bg);
+  border: 2px solid #2a1e0a;
+  border-radius: 8px;
+  padding: 4px 6px;
+}
+#oled-screen {
+  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+  background: var(--oled-bg);
+  color: var(--oled-fg);
+  text-shadow: 0 0 6px var(--oled-glow);
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre;
+  letter-spacing: 0.5px;
+  display: block;
+  min-height: 120px;
+}
+#oled-screen .sel   { background: var(--oled-fg); color: var(--oled-bg); text-shadow: none; }
+#oled-screen .blink { animation: blink-anim 0.6s steps(2) infinite; }
+@keyframes blink-anim { from { opacity: 1; } to { opacity: 0; } }
+
+.sleep-overlay {
+  display: none;
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.85);
+  border-radius: 8px;
+  align-items: center; justify-content: center;
+  font-size: 12px; color: #888; text-align: center;
+}
+.sleep-overlay.active { display: flex; }
+
+/* ── Switch indicators ───────────────────────────────────────────────────── */
+.switches {
+  display: flex; gap: 8px; justify-content: center;
+}
+.sw-badge {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  font-size: 11px; color: #666;
+}
+.sw-badge span { font-size: 10px; text-transform: uppercase; }
+.sw-led {
+  width: 14px; height: 14px; border-radius: 50%;
+  background: #222; border: 1px solid #333;
+  transition: background 0.15s;
+}
+.sw-led.on { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+
+/* ── Encoder buttons ─────────────────────────────────────────────────────── */
+.encoder-pad { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.enc-row { display: flex; gap: 8px; }
+.enc-btn {
+  width: 72px; height: 72px;
+  background: var(--btn-bg); border: 1px solid var(--border);
+  border-radius: 10px; color: var(--fg); font-size: 22px;
+  cursor: pointer; transition: background 0.1s, transform 0.08s;
+  display: flex; align-items: center; justify-content: center;
+}
+.enc-btn:hover   { background: var(--btn-hover); }
+.enc-btn:active  { transform: scale(0.93); }
+.enc-btn.long    { width: 160px; font-size: 14px; }
+
+/* ── Mobile layout ───────────────────────────────────────────────────────── */
+[data-layout="mobile"] .layout {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 12px; padding: 12px;
+  max-width: 480px; margin: 0 auto;
+}
+[data-layout="mobile"] .oled-wrap { width: 100%; }
+[data-layout="mobile"] .desktop-panel { display: none; }
+[data-layout="mobile"] .switches { width: 100%; }
+
+/* ── Desktop layout ──────────────────────────────────────────────────────── */
+[data-layout="desktop"] .layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  grid-template-rows: auto;
+  gap: 16px;
+  padding: 16px;
+  max-width: 1100px; margin: 0 auto;
+}
+[data-layout="desktop"] .left-col {
+  display: flex; flex-direction: column; gap: 12px;
+}
+[data-layout="desktop"] .desktop-panel {
+  display: flex; flex-direction: column; gap: 16px;
+}
+[data-layout="desktop"] .oled-wrap { width: 100%; }
+
+/* ── Desktop panel sections ──────────────────────────────────────────────── */
+.panel-section {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px; padding: 14px;
+}
+.panel-section h3 { font-size: 13px; color: #888; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
+
+/* Direct-set inputs */
+.ds-grid { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: center; }
+.ds-grid label { font-size: 13px; color: #aaa; white-space: nowrap; }
+.ds-grid input[type=number] {
+  background: #1a1a1a; border: 1px solid var(--border);
+  border-radius: 4px; color: var(--fg); padding: 4px 8px; font-size: 13px; width: 100%;
+}
+.ds-grid input:focus { outline: none; border-color: var(--accent); }
+
+/* Command buttons */
+.cmd-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.cmd-btn {
+  padding: 7px 14px; font-size: 13px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--btn-bg); color: var(--fg);
+  cursor: pointer; transition: background 0.1s;
+}
+.cmd-btn:hover:not(:disabled) { background: var(--btn-hover); }
+.cmd-btn:disabled { opacity: 0.35; cursor: default; }
+.cmd-btn.primary { border-color: var(--accent); color: var(--accent); }
+
+/* Debug switches */
+.debug-sw-grid { display: flex; gap: 8px; flex-wrap: wrap; }
+.dsw-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--btn-bg); color: #aaa; cursor: pointer; font-size: 12px;
+  transition: background 0.1s;
+}
+.dsw-btn.active { background: #1a2e1a; border-color: var(--ok); color: var(--ok); }
+.dsw-btn .led { width: 10px; height: 10px; border-radius: 50%; background: #222; }
+.dsw-btn.active .led { background: var(--ok); }
+
+/* Log */
+#log-panel { height: 140px; overflow-y: auto; font-family: monospace; font-size: 11px; color: #666; }
+#log-panel div { padding: 1px 0; }
+#log-panel div.info { color: #888; }
+#log-panel div.warn { color: var(--warn); }
+#log-panel div.err  { color: var(--err); }

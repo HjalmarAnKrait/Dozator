@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DOZATOR</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <header>
+    <h1>DOZATOR</h1>
+    <div id="conn-status">
+      <div id="conn-dot"></div>
+      <span id="conn-text">подключение...</span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <!-- Left column: OLED + controls -->
+    <div class="left-col">
+      <!-- OLED zone -->
+      <div class="oled-wrap">
+        <pre id="oled-screen">Нет соединения...</pre>
+        <div class="sleep-overlay" id="sleep-overlay">
+          <div>ЭКРАН СПИТ<br><small>нажми кнопку чтобы разбудить</small></div>
+        </div>
+      </div>
+
+      <!-- Switch indicators -->
+      <div class="switches">
+        <div class="sw-badge">
+          <div class="sw-led" id="sw-top"></div>
+          <span>TOP</span>
+        </div>
+        <div class="sw-badge">
+          <div class="sw-led" id="sw-a"></div>
+          <span>A</span>
+        </div>
+        <div class="sw-badge">
+          <div class="sw-led" id="sw-b"></div>
+          <span>B</span>
+        </div>
+        <div class="sw-badge">
+          <div class="sw-led" id="sw-bot"></div>
+          <span>BOT</span>
+        </div>
+      </div>
+
+      <!-- Encoder pad -->
+      <div class="encoder-pad">
+        <div class="enc-row">
+          <button class="enc-btn" data-ev="ccw" title="CCW">↺</button>
+          <button class="enc-btn" data-ev="click" title="Click">●</button>
+          <button class="enc-btn" data-ev="cw"  title="CW">↻</button>
+        </div>
+        <div class="enc-row">
+          <button class="enc-btn long" data-ev="long" title="Long press">⏱ Долгий</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right column: desktop panel (hidden on mobile) -->
+    <div class="desktop-panel">
+      <!-- Direct input -->
+      <div class="panel-section">
+        <h3>Прямой ввод</h3>
+        <div class="ds-grid">
+          <label>Шприц A (объём)</label>
+          <select id="ds-syringe-a" class="ds-grid input"></select>
+          <label>D ext A, мм</label>
+          <input type="number" id="ds-diam-a" step="0.1" min="1" max="150">
+          <label>Шприц B (объём)</label>
+          <select id="ds-syringe-b" class="ds-grid input"></select>
+          <label>D ext B, мм</label>
+          <input type="number" id="ds-diam-b" step="0.1" min="1" max="150">
+          <label>Время дозирования, мин</label>
+          <input type="number" id="ds-dose-time" step="0.1" min="0.1" max="999">
+          <label>Шаг винта, мм</label>
+          <input type="number" id="ds-pitch" step="0.5" min="0.5" max="10">
+          <label>Сон экрана, с</label>
+          <input type="number" id="ds-sleep" step="5" min="5" max="300">
+        </div>
+      </div>
+
+      <!-- Commands -->
+      <div class="panel-section">
+        <h3>Команды</h3>
+        <div class="cmd-row">
+          <button class="cmd-btn primary" data-cmd="start_charging">Старт зарядки</button>
+          <button class="cmd-btn primary" data-cmd="pusk">ПУСК</button>
+          <button class="cmd-btn" data-cmd="abort">Стоп</button>
+          <button class="cmd-btn" data-cmd="new_cycle">Новый цикл</button>
+          <button class="cmd-btn" data-cmd="enter_service">Сервис</button>
+          <button class="cmd-btn" data-cmd="exit_service">Назад</button>
+        </div>
+      </div>
+
+      <!-- Debug switches -->
+      <div class="panel-section">
+        <h3>Debug switches</h3>
+        <div class="debug-sw-grid">
+          <button class="dsw-btn" data-sw="top"><div class="led"></div>TOP</button>
+          <button class="dsw-btn" data-sw="a"  ><div class="led"></div>A</button>
+          <button class="dsw-btn" data-sw="b"  ><div class="led"></div>B</button>
+          <button class="dsw-btn" data-sw="bot"><div class="led"></div>BOT</button>
+        </div>
+      </div>
+
+      <!-- Log -->
+      <div class="panel-section">
+        <h3>Лог</h3>
+        <div id="log-panel"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
