@@ -166,6 +166,13 @@ size_t WsProtocol::buildStateJson(char* buf, size_t bufLen) {
     sw["b"]   = g_state.switches.b;
     sw["bot"] = g_state.switches.bot;
 
+    // Живые показания концевиков (для постоянной отладочной индикации в UI).
+    JsonObject rsw = doc["rawSwitches"].to<JsonObject>();
+    rsw["top"] = g_state.rawSwitches.top;
+    rsw["a"]   = g_state.rawSwitches.a;
+    rsw["b"]   = g_state.rawSwitches.b;
+    rsw["bot"] = g_state.rawSwitches.bot;
+
     JsonObject dos = doc["dosing"].to<JsonObject>();
     dos["elapsedSec"] = g_state.dosing.elapsedSec;
     dos["totalSec"]   = g_state.dosing.totalSec;

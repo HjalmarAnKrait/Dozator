@@ -67,6 +67,9 @@ struct AppState {
     SyringeChoice syringeB    = {2, 28.6f};
     float         doseTimeMin = 2.0f;
     SwitchStates  switches    = {false, false, false, false};
+    // Живые показания концевиков (ILimitSwitches::read()) — для постоянной
+    // отладочной индикации в UI, независимо от экрана/стадии.
+    SwitchStates  rawSwitches = {false, false, false, false};
     DosingProgress dosing     = {0, 0, 0, 0, 0};
 
     // ── UI state ───────────────────────────────────────────────────────────

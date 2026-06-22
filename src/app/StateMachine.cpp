@@ -129,6 +129,14 @@ void StateMachine::transitionTo(Screen next) {
 void StateMachine::tick(uint32_t nowMs) {
     SwitchSnapshot sw = m_switches ? m_switches->read() : SwitchSnapshot{false,false,false,false};
 
+    // Живые показания концевиков — всегда транслируем в UI для отладки.
+    // Бродкастим при любом изменении (троттлинг 10 Гц делает WsBroadcaster).
+    if (sw.top != g_state.rawSwitches.top || sw.a != g_state.rawSwitches.a ||
+        sw.b   != g_state.rawSwitches.b   || sw.bot != g_state.rawSwitches.bot) {
+        g_state.rawSwitches = {sw.top, sw.a, sw.b, sw.bot};
+        requestBroadcast();
+    }
+
     switch (g_state.screen) {
         case Screen::PARKING:
             if (sw.top) { transitionTo(Screen::PARKED); return; }

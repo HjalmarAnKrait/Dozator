@@ -2,117 +2,140 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0f1115">
   <title>DOZATOR</title>
   <link rel="stylesheet" href="app.css">
 </head>
 <body>
-  <header>
-    <h1>DOZATOR</h1>
-    <div id="conn-status">
-      <div id="conn-dot"></div>
-      <span id="conn-text">подключение...</span>
+  <!-- ── Залипающая шапка: связь + ВСЕГДА видимые концевики ─────────────── -->
+  <header class="topbar">
+    <div class="topbar-row">
+      <h1>DOZATOR</h1>
+      <div class="conn" id="conn">
+        <span class="conn-dot" id="conn-dot"></span>
+        <span id="conn-text">подключение…</span>
+      </div>
+    </div>
+    <!-- Отладочная панель концевиков — видна при любом экране -->
+    <div class="switchbar" id="switchbar" title="Живое состояние концевиков (отладка)">
+      <div class="sw" data-sw="top"><span class="led" id="led-top"></span><b>TOP</b></div>
+      <div class="sw" data-sw="a"><span class="led" id="led-a"></span><b>A</b></div>
+      <div class="sw" data-sw="b"><span class="led" id="led-b"></span><b>B</b></div>
+      <div class="sw" data-sw="bot"><span class="led" id="led-bot"></span><b>BOT</b></div>
     </div>
   </header>
 
-  <div class="layout">
-    <!-- Left column: OLED + controls -->
-    <div class="left-col">
-      <!-- OLED zone -->
-      <div class="oled-wrap">
-        <pre id="oled-screen">Нет соединения...</pre>
-        <div class="sleep-overlay" id="sleep-overlay">
-          <div>ЭКРАН СПИТ<br><small>нажми кнопку чтобы разбудить</small></div>
-        </div>
-      </div>
+  <main id="main">
+    <!-- Текущая стадия -->
+    <div class="stage-tag" id="stage-tag">—</div>
 
-      <!-- Switch indicators -->
-      <div class="switches">
-        <div class="sw-badge">
-          <div class="sw-led" id="sw-top"></div>
-          <span>TOP</span>
-        </div>
-        <div class="sw-badge">
-          <div class="sw-led" id="sw-a"></div>
-          <span>A</span>
-        </div>
-        <div class="sw-badge">
-          <div class="sw-led" id="sw-b"></div>
-          <span>B</span>
-        </div>
-        <div class="sw-badge">
-          <div class="sw-led" id="sw-bot"></div>
-          <span>BOT</span>
-        </div>
+    <!-- ── PARKING ──────────────────────────────────────────────────────── -->
+    <section class="card screen" data-screen="PARKING" hidden>
+      <div class="big-status">
+        <div class="spinner"></div>
+        <h2>Парковка</h2>
+        <p>Ожидание концевика <b>TOP</b>…</p>
       </div>
+    </section>
 
-      <!-- Encoder pad -->
-      <div class="encoder-pad">
-        <div class="enc-row">
-          <button class="enc-btn" data-ev="ccw" title="CCW">↺</button>
-          <button class="enc-btn" data-ev="click" title="Click">●</button>
-          <button class="enc-btn" data-ev="cw"  title="CW">↻</button>
+    <!-- ── PARKED: настройка шприцов + старт ────────────────────────────── -->
+    <section class="card screen" data-screen="PARKED" hidden>
+      <h2>Готов к зарядке</h2>
+      <div class="syringe-grid">
+        <div class="syringe">
+          <div class="syringe-title">Шприц A</div>
+          <label>Объём (пресет)</label>
+          <select id="sel-a"></select>
+          <label>Диаметр, мм</label>
+          <input type="number" id="diam-a" step="0.1" min="1" max="150" inputmode="decimal">
         </div>
-        <div class="enc-row">
-          <button class="enc-btn long" data-ev="long" title="Long press">⏱ Долгий</button>
+        <div class="syringe">
+          <div class="syringe-title">Шприц B</div>
+          <label>Объём (пресет)</label>
+          <select id="sel-b"></select>
+          <label>Диаметр, мм</label>
+          <input type="number" id="diam-b" step="0.1" min="1" max="150" inputmode="decimal">
         </div>
       </div>
-    </div>
+      <button class="btn btn-primary btn-xl" data-cmd="start_charging">Старт зарядки</button>
+    </section>
 
-    <!-- Right column: desktop panel (hidden on mobile) -->
-    <div class="desktop-panel">
-      <!-- Direct input -->
-      <div class="panel-section">
-        <h3>Прямой ввод</h3>
-        <div class="ds-grid">
-          <label>Шприц A (объём)</label>
-          <select id="ds-syringe-a" class="ds-grid input"></select>
-          <label>D ext A, мм</label>
-          <input type="number" id="ds-diam-a" step="0.1" min="1" max="150">
-          <label>Шприц B (объём)</label>
-          <select id="ds-syringe-b" class="ds-grid input"></select>
-          <label>D ext B, мм</label>
-          <input type="number" id="ds-diam-b" step="0.1" min="1" max="150">
-          <label>Время дозирования, мин</label>
-          <input type="number" id="ds-dose-time" step="0.1" min="0.1" max="999">
-          <label>Шаг винта, мм</label>
-          <input type="number" id="ds-pitch" step="0.5" min="0.5" max="10">
-          <label>Сон экрана, с</label>
-          <input type="number" id="ds-sleep" step="5" min="5" max="300">
+    <!-- ── CHARGING ─────────────────────────────────────────────────────── -->
+    <section class="card screen" data-screen="CHARGING" hidden>
+      <div class="big-status">
+        <div class="spinner"></div>
+        <h2>Зарядка</h2>
+        <p>Ожидание концевиков <b>A</b> и <b>B</b>…</p>
+      </div>
+    </section>
+
+    <!-- ── CHARGED: время + потоки + ПУСК ───────────────────────────────── -->
+    <section class="card screen" data-screen="CHARGED" hidden>
+      <h2>Заряжено</h2>
+      <label>Время дозирования, мин</label>
+      <input type="number" id="dose-time" step="0.1" min="0.1" max="999" inputmode="decimal">
+      <div class="flows">
+        <div class="flow"><span>Поток A</span><b id="flow-a">—</b><small>мл/мин</small></div>
+        <div class="flow"><span>Поток B</span><b id="flow-b">—</b><small>мл/мин</small></div>
+      </div>
+      <button class="btn btn-primary btn-xl" data-cmd="pusk">▶ ПУСК</button>
+    </section>
+
+    <!-- ── DOSING: прогресс + стоп ──────────────────────────────────────── -->
+    <section class="card screen" data-screen="DOSING" hidden>
+      <h2>Дозирование</h2>
+      <div class="progress-wrap">
+        <div class="progress-num" id="dose-pct">0%</div>
+        <div class="progress-bar"><div class="progress-fill" id="dose-fill"></div></div>
+        <div class="progress-time"><span id="dose-elapsed">0</span> / <span id="dose-total">0</span> с</div>
+      </div>
+      <div class="flows">
+        <div class="flow"><span>Объём A</span><b id="vol-a">0</b><small>мл</small></div>
+        <div class="flow"><span>Объём B</span><b id="vol-b">0</b><small>мл</small></div>
+      </div>
+      <button class="btn btn-danger btn-xl" data-cmd="abort">■ СТОП</button>
+    </section>
+
+    <!-- ── DONE ─────────────────────────────────────────────────────────── -->
+    <section class="card screen" data-screen="DONE" hidden>
+      <div class="big-status">
+        <div class="done-check">✓</div>
+        <h2>Готово</h2>
+        <p>Цикл завершён.</p>
+      </div>
+      <button class="btn btn-primary btn-xl" data-cmd="new_cycle">↻ Новый цикл</button>
+    </section>
+
+    <!-- ── Неизвестный/сервисный экран (fallback) ───────────────────────── -->
+    <section class="card screen" data-screen="OTHER" hidden>
+      <div class="big-status">
+        <h2 id="other-title">…</h2>
+        <p>Этот экран не управляется с телефона.</p>
+      </div>
+    </section>
+
+    <!-- ── Настройки (сворачиваемые) ────────────────────────────────────── -->
+    <details class="settings" id="settings">
+      <summary>⚙ Настройки</summary>
+      <div class="settings-body">
+        <div class="set-row">
+          <label>Шаг винта, мм/об</label>
+          <input type="number" id="set-pitch" step="0.5" min="0.5" max="10" inputmode="decimal">
+        </div>
+        <div class="set-row">
+          <label>Сон, с</label>
+          <input type="number" id="set-sleep" step="5" min="5" max="300" inputmode="numeric">
+        </div>
+
+        <div class="presets" id="presets-block">
+          <div class="presets-title">Пресеты шприцов</div>
+          <div id="presets-list"></div>
+          <small class="hint">vol — объём (мл), D — диаметр (мм)</small>
         </div>
       </div>
-
-      <!-- Commands -->
-      <div class="panel-section">
-        <h3>Команды</h3>
-        <div class="cmd-row">
-          <button class="cmd-btn primary" data-cmd="start_charging">Старт зарядки</button>
-          <button class="cmd-btn primary" data-cmd="pusk">ПУСК</button>
-          <button class="cmd-btn" data-cmd="abort">Стоп</button>
-          <button class="cmd-btn" data-cmd="new_cycle">Новый цикл</button>
-          <button class="cmd-btn" data-cmd="enter_service">Сервис</button>
-          <button class="cmd-btn" data-cmd="exit_service">Назад</button>
-        </div>
-      </div>
-
-      <!-- Debug switches -->
-      <div class="panel-section">
-        <h3>Debug switches</h3>
-        <div class="debug-sw-grid">
-          <button class="dsw-btn" data-sw="top"><div class="led"></div>TOP</button>
-          <button class="dsw-btn" data-sw="a"  ><div class="led"></div>A</button>
-          <button class="dsw-btn" data-sw="b"  ><div class="led"></div>B</button>
-          <button class="dsw-btn" data-sw="bot"><div class="led"></div>BOT</button>
-        </div>
-      </div>
-
-      <!-- Log -->
-      <div class="panel-section">
-        <h3>Лог</h3>
-        <div id="log-panel"></div>
-      </div>
-    </div>
-  </div>
+    </details>
+  </main>
 
   <script src="app.js"></script>
 </body>
