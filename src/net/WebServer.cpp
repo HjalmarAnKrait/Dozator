@@ -3,8 +3,8 @@
 #include <LittleFS.h>
 #include <ESP8266WiFi.h>
 
-void WebServer::begin(EncoderInput* enc, ILimitSwitches* sw, Settings* settings, StateMachine* sm) {
-    m_protocol.begin(enc, sw, settings, sm);
+void WebServer::begin(ILimitSwitches* sw, Settings* settings, StateMachine* sm) {
+    m_protocol.begin(sw, settings, sm);
     m_broadcaster.begin(&m_ws);
 
     // ── WebSocket event handler ──────────────────────────────────────────────

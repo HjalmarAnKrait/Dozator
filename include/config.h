@@ -1,30 +1,12 @@
 #pragma once
 #include <Arduino.h>
 
-// ─── DEAD CODE: OLED (I2C) ──────────────────────────────────────────────────
-// Дисплей отключён — пины D1/D2 переназначены на концевики (см. ниже).
-// Дефайны оставлены, чтобы старый код OLED компилировался; он не инициализируется.
-#define PIN_SCL       5    // D1  [DEAD — теперь SW_TOP_PIN]
-#define PIN_SDA       4    // D2  [DEAD — теперь SW_A_PIN]
-
-// ─── DEAD CODE: Encoder ─────────────────────────────────────────────────────
-// Энкодер отключён — пины D5/D6/D7 переназначены (см. ниже).
-#define PIN_ENC_CLK   14   // D5  [DEAD — теперь STEP_STEP_PIN]
-#define PIN_ENC_DT    12   // D6  [DEAD — теперь SW_B_PIN]
-#define PIN_ENC_SW    13   // D7  [DEAD — теперь SW_BOT_PIN]
-
-// ─── Отключённая периферия (dead code) ──────────────────────────────────────
-// Дисплей и энкодер физически отключены, их пины переназначены. Ставим 0,
-// чтобы их код не инициализировался и не трогал новые пины (мотор/концевики).
-#define USE_OLED      0
-#define USE_ENCODER   0
-
 // ─── Simulation ────────────────────────────────────────────────────────────
 #define USE_SIMULATED_HW  0    // 0 = реальное железо (RealStepper/RealSwitches)
 #define SIM_TIME_FACTOR   1    // используется только симуляцией
 
 // ─── Real HW pins (активная распиновка) ─────────────────────────────────────
-// Без дисплея и энкодера. Карта пинов — см. HARDWARE.md §2.1.
+// Headless: без дисплея и энкодера. Карта пинов — см. HARDWARE.md §2.1.
 // Концевики: 4 сигнала + общий GND (3.3В к коробке тянуть НЕ нужно).
 // Драйвер: 3 сигнала + GND.
 
@@ -53,18 +35,11 @@
 #define MOTOR_RPM_MAX   300.0f
 
 // ─── Timing ────────────────────────────────────────────────────────────────
-#define OLED_RENDER_INTERVAL_MS   50     // 20 Hz
 #define WS_THROTTLE_MS            100    // 10 Hz
 #define WS_HEARTBEAT_MS           30000  // 30 s
 
-// ─── Encoder / button ──────────────────────────────────────────────────────
-#define ENC_DEBOUNCE_MS      30
-#define ENC_CLICK_MAX_MS     600
-#define ENC_LONG_MS          800
-#define ENC_STEPS_PER_DETENT 4
-
-// ─── Event queue ───────────────────────────────────────────────────────────
-#define ENCODER_QUEUE_MAX 16
+// ─── Switch debounce ───────────────────────────────────────────────────────
+#define SWITCH_DEBOUNCE_MS   30
 
 // ─── WiFi AP ───────────────────────────────────────────────────────────────
 #define WIFI_SSID       "dozator"
@@ -76,5 +51,5 @@
 // ─── Sleep default ─────────────────────────────────────────────────────────
 #define DEFAULT_SLEEP_SEC   15
 
-// ─── Font default (index into g_fontTiers[]) ───────────────────────────────
-#define DEFAULT_FONT_INDEX  1   // S = 6x13, medium
+// ─── Font default (вестигиальное поле AppState; OLED удалён) ────────────────
+#define DEFAULT_FONT_INDEX  1

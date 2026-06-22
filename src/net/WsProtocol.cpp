@@ -7,8 +7,7 @@
 #include <ArduinoJson.h>
 #include <string.h>
 
-void WsProtocol::begin(EncoderInput* enc, ILimitSwitches* sw, Settings* settings, StateMachine* sm) {
-    m_enc      = enc;
+void WsProtocol::begin(ILimitSwitches* sw, Settings* settings, StateMachine* sm) {
     m_switches = sw;
     m_settings = settings;
     m_sm       = sm;
@@ -21,23 +20,15 @@ void WsProtocol::handleMessage(AsyncWebSocketClient* client, const char* data, s
 
     const char* type = doc["type"] | "";
 
-    if (strcmp(type, "encoder") == 0) {
-        handleEncoder(doc["action"] | "");
-    } else if (strcmp(type, "debug_switch") == 0) {
+    if (strcmp(type, "debug_switch") == 0) {
         handleDebugSwitch(doc["switch"] | "", doc["state"] | false);
     } else if (strcmp(type, "direct_set") == 0) {
         handleDirectSet(doc["field"] | "", doc["value"] | 0.0f, client);
+    } else if (strcmp(type, "set_preset") == 0) {
+        handleSetPreset(doc["index"] | -1, doc["vol"] | 0.0f, doc["diam"] | 0.0f);
     } else if (strcmp(type, "command") == 0) {
         handleCommand(doc["action"] | "");
     }
-}
-
-void WsProtocol::handleEncoder(const char* action) {
-    if (!m_enc) return;
-    if      (strcmp(action, "cw")    == 0) m_enc->pushEvent(EncoderEvent::CW);
-    else if (strcmp(action, "ccw")   == 0) m_enc->pushEvent(EncoderEvent::CCW);
-    else if (strcmp(action, "click") == 0) m_enc->pushEvent(EncoderEvent::CLICK);
-    else if (strcmp(action, "long")  == 0) m_enc->pushEvent(EncoderEvent::LONG);
 }
 
 void WsProtocol::handleDebugSwitch(const char* sw, bool state) {
@@ -89,20 +80,22 @@ void WsProtocol::handleDirectSet(const char* field, float value, AsyncWebSocketC
     if (m_sm) m_sm->transitionTo(g_state.screen);  // re-broadcast state
 }
 
+void WsProtocol::handleSetPreset(int index, float vol, float diam) {
+    if (index < 0 || index >= g_state.presetsCount) return;
+    g_state.presets[index].vol  = constrain(vol,  1.0f, 500.0f);
+    g_state.presets[index].diam = constrain(diam, 1.0f, 150.0f);
+    // Если выбранный шприц ссылается на этот пресет — синхронизируем его диаметр.
+    if (g_state.syringeA.presetIdx == index) g_state.syringeA.diameter = g_state.presets[index].diam;
+    if (g_state.syringeB.presetIdx == index) g_state.syringeB.diameter = g_state.presets[index].diam;
+    if (m_settings) m_settings->markDirty();
+    if (m_sm) m_sm->requestBroadcast();
+}
+
 void WsProtocol::handleCommand(const char* action) {
     if (!m_sm) return;
     if      (strcmp(action, "start_charging") == 0 && g_state.screen == Screen::PARKED)
         m_sm->transitionTo(Screen::CHARGING);
-    else if (strcmp(action, "enter_service") == 0 && g_state.screen == Screen::PARKED) {
-        g_state.breadcrumb[g_state.breadcrumbDepth++] = {Screen::PARKED, g_state.cursorIndex};
-        m_sm->transitionTo(Screen::SERVICE_MENU);
-    } else if (strcmp(action, "exit_service") == 0) {
-        if (g_state.breadcrumbDepth > 0) {
-            BreadcrumbEntry e = g_state.breadcrumb[--g_state.breadcrumbDepth];
-            m_sm->transitionTo(e.screen);
-            g_state.cursorIndex = e.cursor;
-        }
-    } else if (strcmp(action, "pusk") == 0 && g_state.screen == Screen::CHARGED) {
+    else if (strcmp(action, "pusk") == 0 && g_state.screen == Screen::CHARGED) {
         m_sm->transitionTo(Screen::DOSING);
     } else if (strcmp(action, "abort") == 0 && g_state.screen == Screen::DOSING) {
         m_sm->transitionTo(Screen::DONE);

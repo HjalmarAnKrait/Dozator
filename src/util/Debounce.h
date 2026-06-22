@@ -4,7 +4,7 @@
 
 class Debounce {
 public:
-    explicit Debounce(uint32_t delayMs = ENC_DEBOUNCE_MS)
+    explicit Debounce(uint32_t delayMs = SWITCH_DEBOUNCE_MS)
         : m_delay(delayMs) {}
 
     // Feed raw pin state; returns true when a stable transition is detected.

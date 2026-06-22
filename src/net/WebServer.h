@@ -3,14 +3,13 @@
 #include "WsProtocol.h"
 #include "WsBroadcaster.h"
 
-class EncoderInput;
 class Settings;
 class StateMachine;
 class ILimitSwitches;
 
 class WebServer {
 public:
-    void begin(EncoderInput* enc, ILimitSwitches* sw, Settings* settings, StateMachine* sm);
+    void begin(ILimitSwitches* sw, Settings* settings, StateMachine* sm);
     WsBroadcaster& broadcaster() { return m_broadcaster; }
 
 private:
