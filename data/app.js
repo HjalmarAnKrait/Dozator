@@ -1,7 +1,8 @@
 'use strict';
 
 // ─── WebSocket + reconnect ──────────────────────────────────────────────────
-const WS_URL = `ws://${location.hostname}/ws`;
+// location.host включает порт (localhost:8000 локально; 192.168.4.1 на плате — порт 80).
+const WS_URL = `ws://${location.host}/ws`;
 let ws = null;
 let lastState = null;
 let connAttempts = 0;
@@ -39,9 +40,30 @@ function handleMsg(msg) {
 const $ = (id) => document.getElementById(id);
 
 // Не перетираем поле, пока пользователь его редактирует (фокус).
+// При установке валидного значения с сервера снимаем пометку ошибки.
 function setVal(el, v) {
-  if (el && document.activeElement !== el) el.value = v;
+  if (el && document.activeElement !== el) { el.value = v; el.classList.remove('invalid'); }
 }
+
+// ─── Допустимые диапазоны (синхронны с constrain() в прошивке) ──────────────
+const RANGES = {
+  'syringeA.diameter': { min: 1,   max: 150 },
+  'syringeB.diameter': { min: 1,   max: 150 },
+  'doseTimeMin':       { min: 0.1, max: 999 },
+  'screwPitch':        { min: 0.5, max: 10  },
+  'sleepTimeout':      { min: 5,   max: 300 },
+};
+const PRESET_RANGE = { vol: { min: 1, max: 500 }, diam: { min: 1, max: 150 } };
+
+// Парсит и проверяет диапазон. Возвращает число или null (пусто/неполно/вне диапазона).
+function validNum(raw, range) {
+  if (raw === '' || raw === '-' || raw === '.') return null;
+  const v = parseFloat(raw);
+  if (!isFinite(v) || v < range.min || v > range.max) return null;
+  return v;
+}
+const clampNum = (v, r) => Math.min(r.max, Math.max(r.min, v));
+const markInvalid = (el, bad) => el.classList.toggle('invalid', bad);
 
 const STAGE_RU = {
   PARKING:  'Парковка',
@@ -164,31 +186,50 @@ document.addEventListener('click', (e) => {
   if (btn) send({ type: 'command', action: btn.dataset.cmd });
 });
 
-// direct_set по change (срабатывает на blur/Enter — без петель ввода)
+// Числовое поле с валидацией: на input — пересчёт сразу (если валидно),
+// невалидное подсвечиваем и не шлём; на blur — поджимаем в диапазон.
+function bindNum(id, field) {
+  const el = $(id);
+  const range = RANGES[field];
+  el.addEventListener('input', () => {
+    const v = validNum(el.value, range);
+    markInvalid(el, v === null && el.value !== '');
+    if (v !== null) send({ type: 'direct_set', field, value: v });
+  });
+  el.addEventListener('blur', () => {
+    if (el.value === '') return;
+    const n = parseFloat(el.value);
+    if (!isFinite(n)) { el.value = ''; markInvalid(el, false); return; }
+    const v = clampNum(n, range);
+    el.value = fmt(v);
+    markInvalid(el, false);
+    send({ type: 'direct_set', field, value: v });
+  });
+}
+
+// Селекты — по change (частичного ввода нет).
 $('sel-a').addEventListener('change', (e) =>
   send({ type: 'direct_set', field: 'syringeA.presetIdx', value: +e.target.value }));
 $('sel-b').addEventListener('change', (e) =>
   send({ type: 'direct_set', field: 'syringeB.presetIdx', value: +e.target.value }));
-$('diam-a').addEventListener('change', (e) =>
-  send({ type: 'direct_set', field: 'syringeA.diameter', value: +e.target.value }));
-$('diam-b').addEventListener('change', (e) =>
-  send({ type: 'direct_set', field: 'syringeB.diameter', value: +e.target.value }));
-$('dose-time').addEventListener('change', (e) =>
-  send({ type: 'direct_set', field: 'doseTimeMin', value: +e.target.value }));
-$('set-pitch').addEventListener('change', (e) =>
-  send({ type: 'direct_set', field: 'screwPitch', value: +e.target.value }));
-$('set-sleep').addEventListener('change', (e) =>
-  send({ type: 'direct_set', field: 'sleepTimeout', value: +e.target.value }));
 
-// Редактирование пресетов (set_preset реализуется в прошивке этой же ветки)
-$('presets-list').addEventListener('change', (e) => {
+bindNum('diam-a',    'syringeA.diameter');
+bindNum('diam-b',    'syringeB.diameter');
+bindNum('dose-time', 'doseTimeMin');
+bindNum('set-pitch', 'screwPitch');
+bindNum('set-sleep', 'sleepTimeout');
+
+// Редактирование пресетов — на лету, с валидацией каждого поля.
+$('presets-list').addEventListener('input', (e) => {
   const el = e.target;
   if (el.dataset.preset == null) return;
-  const idx = +el.dataset.preset;
+  const range = PRESET_RANGE[el.dataset.field];
+  markInvalid(el, validNum(el.value, range) === null && el.value !== '');
   const row = el.closest('.preset-row');
-  const vol = +row.querySelector('[data-field="vol"]').value;
-  const diam = +row.querySelector('[data-field="diam"]').value;
-  send({ type: 'set_preset', index: idx, vol, diam });
+  const vol  = validNum(row.querySelector('[data-field="vol"]').value,  PRESET_RANGE.vol);
+  const diam = validNum(row.querySelector('[data-field="diam"]').value, PRESET_RANGE.diam);
+  if (vol === null || diam === null) return;  // шлём только когда оба валидны
+  send({ type: 'set_preset', index: +el.dataset.preset, vol, diam });
 });
 
 connect();

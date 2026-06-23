@@ -47,14 +47,14 @@
           <div class="syringe-title">Шприц A</div>
           <label>Объём (пресет)</label>
           <select id="sel-a"></select>
-          <label>Диаметр, мм</label>
+          <label>Диаметр, мм (1–150)</label>
           <input type="number" id="diam-a" step="0.1" min="1" max="150" inputmode="decimal">
         </div>
         <div class="syringe">
           <div class="syringe-title">Шприц B</div>
           <label>Объём (пресет)</label>
           <select id="sel-b"></select>
-          <label>Диаметр, мм</label>
+          <label>Диаметр, мм (1–150)</label>
           <input type="number" id="diam-b" step="0.1" min="1" max="150" inputmode="decimal">
         </div>
       </div>
@@ -73,7 +73,7 @@
     <!-- ── CHARGED: время + потоки + ПУСК ───────────────────────────────── -->
     <section class="card screen" data-screen="CHARGED" hidden>
       <h2>Заряжено</h2>
-      <label>Время дозирования, мин</label>
+      <label>Время дозирования, мин (0.1–999)</label>
       <input type="number" id="dose-time" step="0.1" min="0.1" max="999" inputmode="decimal">
       <div class="flows">
         <div class="flow"><span>Поток A</span><b id="flow-a">—</b><small>мл/мин</small></div>
@@ -120,18 +120,18 @@
       <summary>⚙ Настройки</summary>
       <div class="settings-body">
         <div class="set-row">
-          <label>Шаг винта, мм/об</label>
+          <label>Шаг винта, мм/об (0.5–10)</label>
           <input type="number" id="set-pitch" step="0.5" min="0.5" max="10" inputmode="decimal">
         </div>
         <div class="set-row">
-          <label>Сон, с</label>
+          <label>Сон, с (5–300)</label>
           <input type="number" id="set-sleep" step="5" min="5" max="300" inputmode="numeric">
         </div>
 
         <div class="presets" id="presets-block">
           <div class="presets-title">Пресеты шприцов</div>
           <div id="presets-list"></div>
-          <small class="hint">vol — объём (мл), D — диаметр (мм)</small>
+          <small class="hint">vol — объём 1–500 мл, D — диаметр 1–150 мм</small>
         </div>
       </div>
     </details>
