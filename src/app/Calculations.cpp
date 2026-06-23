@@ -32,11 +32,13 @@ float flowA() {
 float screwSpeedMmPerMin() {
     float sA = area(g_state.syringeA.diameter);
     if (sA <= 0.0f) return 0.0f;
-    return flowA() / sA;   // mm³/min / mm² = mm/min
+    // flowA в мл/мин → мм³/мин (×1000), делим на площадь (мм²) → мм/мин.
+    return flowA() * 1000.0f / sA;
 }
 
 float flowB() {
-    return screwSpeedMmPerMin() * area(g_state.syringeB.diameter);
+    // vScrew(мм/мин) × площадь B(мм²) = мм³/мин → мл/мин (÷1000).
+    return screwSpeedMmPerMin() * area(g_state.syringeB.diameter) / 1000.0f;
 }
 
 float motorRpm() {
@@ -48,21 +50,16 @@ TimeRange timeRangeMin() {
     float vA = volA();
     if (vA <= 0.0f) return {0.0f, 0.0f};
 
-    // Flow-limited range
-    float tMin = vA / MAX_FLOW_MLPM;
-    float tMax = vA / MIN_FLOW_MLPM;
+    // Предел по потоку: t = объём / поток.
+    float tMin = vA / MAX_FLOW_MLPM;   // мин. время при макс. потоке
+    float tMax = vA / MIN_FLOW_MLPM;   // макс. время при мин. потоке
 
-    // RPM-limited range: clamp based on motor RPM [MOTOR_RPM_MIN, MOTOR_RPM_MAX]
-    // rpm = v_screw / pitch; v_screw = flow / S_A
-    // flow = vol / t  =>  t = vol / flow = vol * S_A * pitch / rpm
+    // Предел по оборотам мотора:
+    //   rpm = vScrew/pitch,  vScrew = vA*1000/(t*sA)  =>  t = vA*1000/(rpm*sA*pitch)
     float sA = area(g_state.syringeA.diameter);
     if (sA > 0.0f && g_state.screwPitch > 0.0f) {
-        float tAtRpmMax = vA * sA * g_state.screwPitch / (MAX_FLOW_MLPM * sA);
-        float tAtRpmMin = vA / (MOTOR_RPM_MIN * g_state.screwPitch * sA / 1.0f);
-        // Simpler: rpm = vScrew/pitch, vScrew = flowA/sA, flowA = vA/t
-        // => t = vA / (rpm * pitch * sA)
-        float tRpmMax = vA / (MOTOR_RPM_MAX * g_state.screwPitch * sA);
-        float tRpmMin = vA / (MOTOR_RPM_MIN * g_state.screwPitch * sA);
+        float tRpmMax = vA * 1000.0f / (MOTOR_RPM_MAX * sA * g_state.screwPitch);  // при макс. rpm
+        float tRpmMin = vA * 1000.0f / (MOTOR_RPM_MIN * sA * g_state.screwPitch);  // при мин. rpm
         tMin = max(tMin, tRpmMax);
         tMax = min(tMax, tRpmMin);
     }

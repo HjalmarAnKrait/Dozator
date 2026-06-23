@@ -65,6 +65,16 @@ function validNum(raw, range) {
 const clampNum = (v, r) => Math.min(r.max, Math.max(r.min, v));
 const markInvalid = (el, bad) => el.classList.toggle('invalid', bad);
 
+// Диапазон поля. Для времени дозирования — динамический (физический предел
+// под текущие шприцы/шаг приходит в state.cycle.timeMin/timeMax).
+function getRange(field) {
+  if (field === 'doseTimeMin' && lastState?.cycle && lastState.cycle.timeMax > 0) {
+    return { min: lastState.cycle.timeMin, max: lastState.cycle.timeMax };
+  }
+  return RANGES[field];
+}
+const fmtRange = (r) => `${fmt(Math.ceil(r.min * 100) / 100)}–${fmt(Math.floor(r.max * 100) / 100)}`;
+
 const STAGE_RU = {
   PARKING:  'Парковка',
   PARKED:   'Готов',
@@ -135,9 +145,14 @@ function renderParked(s) {
 }
 
 function renderCharged(s) {
-  setVal($('dose-time'), fmt(s.cycle?.doseTimeMin));
-  $('flow-a').textContent = fmt(s.cycle?.flowA);
-  $('flow-b').textContent = fmt(s.cycle?.flowB);
+  const c = s.cycle || {};
+  setVal($('dose-time'), fmt(c.doseTimeMin));
+  $('flow-a').textContent = fmt(c.flowA);
+  $('flow-b').textContent = fmt(c.flowB);
+  // Подпись с физически допустимым диапазоном под текущие шприцы/шаг.
+  $('dose-time-label').textContent = (c.timeMax > 0)
+    ? `Время дозирования, мин (${fmtRange({ min: c.timeMin, max: c.timeMax })})`
+    : 'Время дозирования, мин';
 }
 
 function renderDosing(s) {
@@ -190,9 +205,8 @@ document.addEventListener('click', (e) => {
 // невалидное подсвечиваем и не шлём; на blur — поджимаем в диапазон.
 function bindNum(id, field) {
   const el = $(id);
-  const range = RANGES[field];
   el.addEventListener('input', () => {
-    const v = validNum(el.value, range);
+    const v = validNum(el.value, getRange(field));
     markInvalid(el, v === null && el.value !== '');
     if (v !== null) send({ type: 'direct_set', field, value: v });
   });
@@ -200,7 +214,7 @@ function bindNum(id, field) {
     if (el.value === '') return;
     const n = parseFloat(el.value);
     if (!isFinite(n)) { el.value = ''; markInvalid(el, false); return; }
-    const v = clampNum(n, range);
+    const v = clampNum(n, getRange(field));
     el.value = fmt(v);
     markInvalid(el, false);
     send({ type: 'direct_set', field, value: v });

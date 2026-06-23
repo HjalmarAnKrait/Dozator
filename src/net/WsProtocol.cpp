@@ -152,6 +152,11 @@ size_t WsProtocol::buildStateJson(char* buf, size_t bufLen) {
     cycle["doseTimeMin"] = g_state.doseTimeMin;
     cycle["flowA"]       = calc::flowA();
     cycle["flowB"]       = calc::flowB();
+    // Физически допустимый диапазон времени дозирования (мин) под текущие
+    // объём/диаметр/шаг — пределы потока и оборотов мотора.
+    calc::TimeRange tr   = calc::timeRangeMin();
+    cycle["timeMin"]     = tr.minMin;
+    cycle["timeMax"]     = tr.maxMin;
 
     JsonObject sw = doc["switches"].to<JsonObject>();
     sw["top"] = g_state.switches.top;

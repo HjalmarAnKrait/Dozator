@@ -54,8 +54,23 @@ const PI = 3.14159265;
 const area = (d) => PI * (d / 2) * (d / 2);
 const volOf = (s) => (state.presets[s.presetIdx] ? state.presets[s.presetIdx].vol : 0);
 const flowA = () => (state.doseTimeMin > 0 ? volOf(state.syringeA) / state.doseTimeMin : 0);
-const screwSpeed = () => { const sA = area(state.syringeA.diameter); return sA > 0 ? flowA() / sA : 0; };
-const flowB = () => screwSpeed() * area(state.syringeB.diameter);
+const screwSpeed = () => { const sA = area(state.syringeA.diameter); return sA > 0 ? flowA() * 1000 / sA : 0; };
+const flowB = () => screwSpeed() * area(state.syringeB.diameter) / 1000;
+
+// Физически допустимый диапазон времени дозирования (порт calc::timeRangeMin).
+function timeRange() {
+  const vA = volOf(state.syringeA);
+  if (vA <= 0) return { min: 0, max: 0 };
+  let tMin = vA / 3000;   // MAX_FLOW_MLPM
+  let tMax = vA / 0.33;   // MIN_FLOW_MLPM
+  const sA = area(state.syringeA.diameter);
+  if (sA > 0 && state.screwPitch > 0) {
+    tMin = Math.max(tMin, vA * 1000 / (300 * sA * state.screwPitch));  // MOTOR_RPM_MAX
+    tMax = Math.min(tMax, vA * 1000 / (10 * sA * state.screwPitch));   // MOTOR_RPM_MIN
+  }
+  if (tMin > tMax) tMin = tMax;
+  return { min: tMin, max: tMax };
+}
 
 // ── Сборка state JSON (зеркало WsProtocol::buildStateJson) ──────────────────
 function buildState() {
@@ -73,6 +88,8 @@ function buildState() {
       doseTimeMin: state.doseTimeMin,
       flowA: flowA(),
       flowB: flowB(),
+      timeMin: timeRange().min,
+      timeMax: timeRange().max,
     },
     switches: state.switches,
     rawSwitches: state.rawSwitches,
