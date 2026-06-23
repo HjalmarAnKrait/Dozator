@@ -32,7 +32,9 @@
     "syringeB": {"presetIdx": 2, "diameter": 28.6, "volume": 50},
     "doseTimeMin": 2.0,
     "flowA": 10.0,
-    "flowB": 22.6
+    "flowB": 22.6,
+    "timeMin": 0.12,
+    "timeMax": 3.53
   },
   "switches":    {"top": true, "a": false, "b": false, "bot": false},
   "rawSwitches": {"top": true, "a": false, "b": false, "bot": false},
@@ -47,6 +49,9 @@
 - **`rawSwitches` — живые показания концевиков** (`ILimitSwitches::read()`),
   обновляются при любом изменении. Использовать для постоянной отладочной
   индикации в UI, независимо от экрана.
+- `cycle.timeMin` / `cycle.timeMax` — физически допустимый диапазон времени
+  дозирования (мин) под текущие объём/диаметр/шаг (пределы потока и оборотов
+  мотора). UI валидирует `doseTimeMin` по нему.
 
 ### `error`
 

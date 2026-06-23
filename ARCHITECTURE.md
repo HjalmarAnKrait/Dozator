@@ -1,169 +1,117 @@
 # Architecture – DOZATOR
 
+Headless-устройство: ни OLED, ни энкодера. Единственный UI — веб-интерфейс по
+WebSocket. Прошивка управляется командами с веба и переходами по концевикам.
+
 ## Слои
 
 ```
 ┌─────────────────────────────────────────────────┐
-│  Application layer                              │
-│  AppState (g_state) · StateMachine · Calculations│
-├──────────────┬───────────────┬──────────────────┤
-│ OledRenderer │  EncoderInput │  WsBroadcaster   │
-│ + 12 screens │  (ISR-free)   │  + WsProtocol    │
-├──────────────┴───────────────┴──────────────────┤
-│  HAL  IStepperDriver · ILimitSwitches           │
-├───────────────────┬─────────────────────────────┤
-│ SimulatedStepper  │ SimulatedSwitches            │
-│ (RealStepper TODO)│ (RealSwitches  TODO)         │
-├───────────────────┴─────────────────────────────┤
-│  WiFiAp · CaptivePortal · AsyncWebServer        │
+│  Application layer                                │
+│  AppState (g_state) · StateMachine · Calculations │
+├──────────────────────────┬───────────────────────┤
+│  WsProtocol              │  WsBroadcaster        │
+│  (разбор команд, state)  │  (throttle 10 Гц)     │
+├──────────────────────────┴───────────────────────┤
+│  HAL  IStepperDriver · ILimitSwitches             │
+├───────────────────────┬───────────────────────────┤
+│ RealStepper (timer1)   │ RealSwitches (debounce)  │
+│ SimulatedStepper       │ SimulatedSwitches        │
+├───────────────────────┴───────────────────────────┤
+│  WiFiAp · CaptivePortal · AsyncWebServer          │
 └─────────────────────────────────────────────────┘
 ```
 
-## Поток событий
+Переключение симуляция/железо — один `#define USE_SIMULATED_HW` в `config.h`.
+
+## Поток управления
 
 ```
-Энкодер (GPIO ISR) ──┐
-                      ├──► EncoderInput::queue ──► StateMachine::onEvent()
-WebSocket (encoder)  ─┘                                  │
-                                                          ▼
-                                              g_state изменяется
-                                                          │
-                      ┌───────────────────────────────────┤
-                      ▼                                   ▼
-              OledRenderer::render()          WsBroadcaster::broadcastNow()
-              (20 Hz из loop())               (throttle 100 ms)
+Браузер (WebSocket)
+   │  command / direct_set / set_preset
+   ▼
+WsProtocol::handleMessage ──► StateMachine::transitionTo / g_state
+                                          │
+   концевики (RealSwitches) ──► StateMachine::tick ──► переходы по цикл-стадиям
+                                          │
+                                          ▼
+                                 g_state изменяется
+                                          │
+                                          ▼
+                         WsBroadcaster (throttle 100 мс) ──► все клиенты (state)
 ```
+
+- **Команды** (`start_charging`, `pusk`, `abort`, `new_cycle`) → прямые переходы.
+- **direct_set / set_preset** → правка значений в `g_state` + ребродкаст.
+- **Концевики** опрашиваются в `StateMachine::tick()`; они двигают цикл
+  (PARKING→PARKED по TOP, CHARGING→CHARGED по A&B, DOSING→DONE по BOT/таймеру).
+
+## Цикл состояний
+
+```
+PARKING ──TOP──► PARKED ──[start_charging]──► CHARGING ──A&B──► CHARGED
+   ▲                                                              │
+   └──────────[new_cycle]── DONE ◄──BOT/таймер── DOSING ◄─[pusk]──┘
+```
+
+`Screen` enum содержит только эти 6 стадий (сервисных экранов нет — настройки
+задаются через `direct_set`/`set_preset` в любой момент).
 
 ## Ключевые решения
 
 ### Один глобальный AppState
-`g_state` — единственный источник правды. Доступен только из главного цикла (не из ISR). Encoder библиотека Stoffregen обрабатывает ISR внутри, в `EncoderInput::tick()` читается уже вычисленное смещение.
-
-Новые поля: `uint8_t fontIndex` (0–3, по умолчанию 1 = S), `bool circularNav` (по умолчанию `true`). Оба персистируются в Settings JSON под ключами `fontIndex` и `circularNav`.
+`g_state` — единственный источник правды, доступен только из главного цикла
+(не из ISR). Часть полей осталась вестигиальной после удаления OLED/энкодера
+(`cursorIndex`, `editing`, `fontIndex`, `circularNav`, `breadcrumb`) — на работу
+не влияют, при желании дочищаются.
 
 ### HAL через интерфейсы
-`IStepperDriver` и `ILimitSwitches` — чистые интерфейсы. В текущей сборке используются `SimulatedStepper` и `SimulatedSwitches`. Переключение на реальное железо: изменить два `#define` и реализовать `Real*` методы.
+`IStepperDriver` и `ILimitSwitches` — чистые интерфейсы. В реальной сборке
+(`USE_SIMULATED_HW 0`) используются `RealStepper` и `RealSwitches`; в симуляции —
+`Simulated*` (автоматически прогоняют цикл по таймерам, для тестов без железа).
 
-### SimulatedSwitches
-Хранит ссылку на экран через `g_state.screen`. При смене экрана вызывается `notifyScreenChange()`, что сбрасывает таймеры симуляции. Метод `debugSetSwitch()` позволяет веб-панели вручную форсировать конечники.
+### RealStepper — шаги через timer1
+ESP8266 не успевает дёргать STEP в `loop()` на высоких частотах, поэтому импульсы
+генерит аппаратный таймер `timer1` (ISR в IRAM, прямой доступ к GPIO через
+`GPOS`/`GPOC`). `moveTo(target, speed)` задаёт направление и интервал; ISR в
+«toggle»-режиме считает шаги. EN — active-LOW.
 
-Исправлен баг переполнения: в `tick()` добавлена защита `if (nowMs < m_screenEnterMs) return;` (аналогично проверке в sleep-логике).
+### RealSwitches — дебаунс
+4 концевика на прямых GPIO (`INPUT_PULLUP`, замыкание на GND = LOW), дебаунс
+30 мс (`util/Debounce.h`). `tick()` читает пины, `read()` отдаёт снимок.
+
+### rawSwitches — живая отладка концевиков
+`StateMachine::tick()` пишет реальные показания `ILimitSwitches::read()` в
+`g_state.rawSwitches` и шлёт бродкаст при изменении. UI рисует их в постоянной
+панели TOP/A/B/BOT — видно на любом экране, независимо от стадии.
 
 ### Throttled WebSocket broadcast
-`WsBroadcaster::requestBroadcast()` помечает "нужна рассылка". В `tick()` реально отправляется не чаще 10 Гц (100 мс). Heartbeat каждые 30 сек независимо от событий.
+`WsBroadcaster::requestBroadcast()` помечает «нужна рассылка»; реально шлётся не
+чаще 10 Гц (100 мс). Heartbeat (полный `state`) каждые 30 с.
 
-### Нет `delay()` в loop()
-Все таймеры — на `millis()`. Единственный `delay(1000)` — в `showSplash()` при запуске, до того как запустился loop().
+### Расчёты (Calculations)
+`flowA = volA/doseTime`; `flowB = flowA·(areaB/areaA)`; линейная скорость винта
+`vScrew = flowA·1000/areaA` (мл→мм³); `motorRpm = vScrew/pitch`.
+`timeRangeMin()` — физически допустимый диапазон времени дозирования из пределов
+потока (`MIN/MAX_FLOW_MLPM`) и оборотов (`MOTOR_RPM_MIN/MAX`); отдаётся в UI как
+`cycle.timeMin/timeMax`.
 
-### LittleFS вместо SPIFFS
-SPIFFS deprecated. Файловая система `littlefs` задана в `platformio.ini`. Веб-файлы заливаются командой `pio run -t uploadfs`.
+> Важно: множитель ×1000 (мл→мм³) обязателен — без него `motorRpm` занижался в
+> 1000 раз (мотор почти не крутился). `flowB` от этого не зависит (отношение
+> площадей сокращает множители).
 
-### ArduinoJson v7
-Используется `JsonDocument` (динамический). В горячих путях (broadcast) размер буфера 1200 байт фиксированный (`char m_buf[1200]`).
+### Прочее
+- Нет `delay()` в `loop()` — всё на `millis()`.
+- LittleFS (не SPIFFS); веб-файлы — `pio run -t uploadfs`.
+- ArduinoJson v7 (`JsonDocument`), фиксированный буфер бродкаста.
+- Captive-portal: на любой неизвестный путь отдаётся сама страница (HTTP 200),
+  без 302-редиректов (иначе Safari ловил ERR_TOO_MANY_REDIRECTS).
 
-### Без `String` в горячих путях
-Рендеринг экранов использует `char[]` + `snprintf`. `String` (Arduino) не используется в render/serialize путях.
+## Настройки (persist в LittleFS)
+`screwPitch`, `sleepTimeout`, пресеты шприцов. Меняются через `direct_set`
+(шаг/сон) и `set_preset` (пресеты) в любой момент, сохраняются с дебаунсом 2 с.
 
-### navWrap — кольцевая/ограниченная навигация
-`StateMachine::navWrap(cur, dir, total)`:
-- если `g_state.circularNav == true` → `(cur + dir + total) % total`
-- иначе → `constrain(cur + dir, 0, total - 1)`
-
-SERVICE_MENU всегда использует кольцевую навигацию независимо от флага (чтобы пункт «Назад» был всегда достижим).
-
-### uint32_t underflow guard
-В проверке времени сна (`millis() - lastInteractionMs > sleepTimeout`) добавлена защита `if (nowMs < lastInteractionMs) return;` на случай переполнения `uint32_t`. Аналогичная защита в `SimulatedSwitches::tick()`.
-
-### Направление энкодера
-CW и CCW поменяны местами в `EncoderInput.cpp` — исправлена инверсия физического направления вращения.
-
-## FontConfig и адаптивная вёрстка
-
-**Файлы:** `src/ui/FontConfig.h`, `src/ui/FontConfig.cpp`
-
-Структура `FontTier`:
-```cpp
-struct FontTier {
-    const uint8_t* mainFont;
-    const char*    name;
-    uint8_t        charW;
-    uint8_t        rowH;
-    uint8_t        itemsPerPage;
-    uint8_t        rows[8];  // ROW0..ROW7 — Y-координаты строк
-};
-```
-
-Четыре тира:
-
-| Индекс | Имя | Шрифт    | charW | rowH | itemsPerPage |
-|--------|-----|----------|-------|------|--------------|
-| 0      | XS  | 4×6      | 4     | 6    | 7            |
-| 1      | S   | 6×13     | 6     | 13   | 4 (default)  |
-| 2      | M   | 7×13     | 7     | 13   | 4            |
-| 3      | L   | 9×15     | 9     | 15   | 3            |
-
-Функция `activeTier()` (inline) возвращает `g_fontTiers[g_state.fontIndex]`.
-
-Все макросы в `Fonts.h` / `ScreenHelper.h` (`ROW0`–`ROW4`, `CHAR_W`, `ROW_H`, `ITEMS_PER_PAGE`, `PAGE_ROWS`) разворачиваются в вызовы `activeTier().xxx`. Рендереры экранов адаптируются автоматически — смена шрифта не требует правок в коде экранов.
-
-## Пагинация экранов
-
-Экраны с количеством пунктов больше `ITEMS_PER_PAGE` разбиваются на страницы.
-
-```
-page = cursorIndex / ITEMS_PER_PAGE
-firstVisible = page * ITEMS_PER_PAGE
-```
-
-В правом нижнем углу `drawPageIndicator()` выводит `"X/Y"` шрифтом FONT_SMALL (только если страниц > 1).
-
-Экраны с пагинацией:
-
-| Экран            | Пунктов | Страниц (шрифт S) |
-|------------------|---------|-------------------|
-| PARKED           | 6       | 2                 |
-| SERVICE_MENU     | 6       | 2                 |
-| SERVICE_SYRINGES | переменно | зависит от числа шприцов |
-| SERVICE_FONT     | 5       | 2                 |
-
-## Breadcrumb навигация сервисного меню
-
-```
-PARKED → [push {PARKED,5}] → SERVICE_MENU
-        → [push {SERVICE_MENU,1}] → SERVICE_SYRINGES
-                → [push {SERVICE_SYRINGES,0}] → SERVICE_SYRINGE_EDIT
-                ← [pop] → SERVICE_SYRINGES (cursor=0)
-        ← [pop] → SERVICE_MENU (cursor=1)
-        → [push {SERVICE_MENU,3}] → SERVICE_FONT
-        ← [pop] → SERVICE_MENU (cursor=3)
-← [pop] → PARKED (cursor=5)
-```
-
-Пункты SERVICE_MENU (6 штук, индексы 0–5):
-`Шаг винта / Шприцы / Сон экрана / Шрифт / Кольцо (toggle) / Назад`
-
-## Sleep
-
-- Разрешён только в: PARKED, CHARGED, DONE, SERVICE_*
-- Запрещён в: PARKING, CHARGING, DOSING (идёт активный процесс)
-- При любом событии энкодера: `lastInteractionMs` обновляется
-- Первое событие после сна — только будит, не обрабатывается
-- Веб-интерфейс продолжает работать пока OLED спит
-- Защита от `uint32_t` underflow: `if (nowMs < lastInteractionMs) return;`
-
-## Экраны (12 штук)
-
-| Screen enum       | Назначение                                      |
-|-------------------|-------------------------------------------------|
-| SPLASH            | Заставка при старте                             |
-| PARKED            | Главное меню (позиция 0, выбор операции)        |
-| PARKING           | Анимация возврата к позиции 0                   |
-| CHARGING          | Набор шприца (чекбоксы 16×16, толстая галочка)  |
-| CHARGED           | Шприц набран; нет заголовка, подсказка диапазона|
-| DOSING            | Процесс дозирования                             |
-| DONE              | Инвертированный статус-бар "ВЫПОЛНЕНО", статы   |
-| SERVICE_MENU      | Сервисное меню (6 пунктов, кольцевая навигация) |
-| SERVICE_SYRINGES  | Список шприцов                                  |
-| SERVICE_SYRINGE_EDIT | Редактирование параметров шприца             |
-| SERVICE_SLEEP     | Настройка тайм-аута сна                         |
-| SERVICE_FONT      | Выбор шрифта (5 пунктов, 4 тира + Назад)        |
+## Локальный мок (dev/)
+`dev/mock-server.js` — Node HTTP+WS, повторяет протокол и автомат, чтобы гонять UI
+без платы. Расчёты портированы из `Calculations.cpp`. При изменении протокола в
+прошивке — синхронизировать мок.
