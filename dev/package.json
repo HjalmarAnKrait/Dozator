@@ -1,0 +1,12 @@
+{
+  "name": "dozator-mock",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local UI mock for DOZATOR — run the web UI without the microcontroller",
+  "scripts": {
+    "start": "node mock-server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
