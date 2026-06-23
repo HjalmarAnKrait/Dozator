@@ -24,13 +24,40 @@ pio device monitor       # 115200
 ## Локальный просмотр UI без микроконтроллера
 
 Веб-интерфейс можно гонять на компьютере — мок имитирует прошивку (протокол +
-автомат, срабатывание концевиков, прогресс дозирования):
+автомат, срабатывание концевиков, прогресс дозирования). Нужен **Node.js ≥ 18**.
+
+**1. Установить Node.js**
+
+- **macOS:**
+  - через [Homebrew](https://brew.sh): `brew install node`
+  - либо скачать установщик с https://nodejs.org (LTS)
+- **Windows:**
+  - скачать установщик с https://nodejs.org (LTS) и пройти мастер
+  - либо `winget install OpenJS.NodeJS.LTS`
+
+Проверка: `node --version` (должна вывести версию).
+
+**2. Запустить мок**
+
+macOS / Linux (Terminal):
 ```bash
 cd dev
-npm install              # один раз (ставит ws)
-npm start                # → http://localhost:8000
+npm install        # один раз — ставит зависимость ws
+npm start          # → http://localhost:8000
 ```
-Подробности — `dev/README.md`. Папка `dev/` в прошивку не входит.
+
+Windows (PowerShell или cmd, из папки проекта):
+```powershell
+cd dev
+npm install
+npm start
+```
+
+**3. Открыть** http://localhost:8000 в браузере. Окно терминала не закрывать,
+пока смотришь UI; остановить — `Ctrl+C`.
+
+Подробности — `dev/README.md`. Папка `dev/` в прошивку не входит и на устройство
+не заливается.
 
 ## Оборудование
 
