@@ -52,6 +52,8 @@ const RANGES = {
   'doseTimeMin':       { min: 0.1, max: 999 },
   'screwPitch':        { min: 0.5, max: 10  },
   'sleepTimeout':      { min: 5,   max: 300 },
+  'parkSpeed':         { min: 50,  max: 3000 },
+  'chargeSpeed':       { min: 50,  max: 3000 },
 };
 const PRESET_RANGE = { vol: { min: 1, max: 500 }, diam: { min: 1, max: 150 } };
 
@@ -191,6 +193,8 @@ function renderDone(s) {
 function renderSettings(s) {
   setVal($('set-pitch'), fmt(s.settings?.screwPitch));
   setVal($('set-sleep'), s.settings?.sleepTimeout ?? '');
+  setVal($('set-parkspeed'), fmt(s.settings?.parkSpeed));
+  setVal($('set-chargespeed'), fmt(s.settings?.chargeSpeed));
   renderPresets(s.settings?.presets || []);
 }
 
@@ -254,6 +258,8 @@ bindNum('diam-b',    'syringeB.diameter');
 bindNum('dose-time', 'doseTimeMin');
 bindNum('set-pitch', 'screwPitch');
 bindNum('set-sleep', 'sleepTimeout');
+bindNum('set-parkspeed', 'parkSpeed');
+bindNum('set-chargespeed', 'chargeSpeed');
 
 // Редактирование пресетов — на лету, с валидацией каждого поля.
 $('presets-list').addEventListener('input', (e) => {

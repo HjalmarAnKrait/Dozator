@@ -60,6 +60,8 @@ struct AppState {
     uint16_t sleepTimeoutSec  = DEFAULT_SLEEP_SEC;
     uint8_t  fontIndex        = DEFAULT_FONT_INDEX;
     bool     circularNav      = true;
+    float    parkSpeed        = 800.0f;   // шаг/с — хоуминг/парковка
+    float    chargeSpeed      = 400.0f;   // шаг/с — плавный спуск при зарядке
     SyringePreset presets[MAX_PRESETS];
     uint8_t  presetsCount     = 3;
 

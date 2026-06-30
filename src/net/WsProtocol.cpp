@@ -67,6 +67,12 @@ void WsProtocol::handleDirectSet(const char* field, float value, AsyncWebSocketC
     } else if (strcmp(field, "sleepTimeout") == 0) {
         g_state.sleepTimeoutSec = (uint16_t)constrain(value, 5.0f, 300.0f);
         m_settings->markDirty();
+    } else if (strcmp(field, "parkSpeed") == 0) {
+        g_state.parkSpeed = constrain(value, 50.0f, 3000.0f);
+        m_settings->markDirty();
+    } else if (strcmp(field, "chargeSpeed") == 0) {
+        g_state.chargeSpeed = constrain(value, 50.0f, 3000.0f);
+        m_settings->markDirty();
     } else {
         ok = false;
     }
@@ -141,6 +147,8 @@ size_t WsProtocol::buildStateJson(char* buf, size_t bufLen) {
     JsonObject settings = doc["settings"].to<JsonObject>();
     settings["screwPitch"]   = g_state.screwPitch;
     settings["sleepTimeout"] = g_state.sleepTimeoutSec;
+    settings["parkSpeed"]    = g_state.parkSpeed;
+    settings["chargeSpeed"]  = g_state.chargeSpeed;
     JsonArray presets = settings["presets"].to<JsonArray>();
     for (int i = 0; i < g_state.presetsCount; i++) {
         JsonObject p = presets.add<JsonObject>();

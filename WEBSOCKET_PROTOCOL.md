@@ -21,6 +21,8 @@
   "settings": {
     "screwPitch": 2.0,
     "sleepTimeout": 15,
+    "parkSpeed": 800,
+    "chargeSpeed": 400,
     "presets": [
       {"vol": 10, "diam": 14.5},
       {"vol": 20, "diam": 19.0},
@@ -94,6 +96,8 @@
 | `syringeB.presetIdx` / `syringeB.diameter` | PARKED |
 | `screwPitch` | любой |
 | `sleepTimeout` | любой |
+| `parkSpeed` (шаг/с, 50–3000) | любой |
+| `chargeSpeed` (шаг/с, 50–3000) | любой |
 
 Если поле недопустимо для текущего экрана — сервер ответит `{"type":"error"}`.
 

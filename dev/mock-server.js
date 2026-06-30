@@ -33,6 +33,8 @@ const state = {
   screen: 'IDLE',
   screwPitch: 2.0,
   sleepTimeout: 15,
+  parkSpeed: 800,
+  chargeSpeed: 400,
   presets: [
     { vol: 10, diam: 14.5 },
     { vol: 20, diam: 19.0 },
@@ -80,6 +82,8 @@ function buildState() {
     settings: {
       screwPitch: state.screwPitch,
       sleepTimeout: state.sleepTimeout,
+      parkSpeed: state.parkSpeed,
+      chargeSpeed: state.chargeSpeed,
       presets: state.presets,
     },
     cycle: {
@@ -192,6 +196,8 @@ function handleDirectSet(field, value) {
   else if (field === 'syringeB.diameter' && inParked) state.syringeB.diameter = clamp(v, 1, 150);
   else if (field === 'screwPitch') state.screwPitch = clamp(v, 0.5, 10);
   else if (field === 'sleepTimeout') state.sleepTimeout = clamp(v, 5, 300) | 0;
+  else if (field === 'parkSpeed') state.parkSpeed = clamp(v, 50, 3000);
+  else if (field === 'chargeSpeed') state.chargeSpeed = clamp(v, 50, 3000);
   broadcast();
 }
 

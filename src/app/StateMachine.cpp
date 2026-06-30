@@ -52,7 +52,7 @@ void StateMachine::transitionTo(Screen next) {
                 m_stepper->enable();
                 // Плавный спуск к концевикам A/B; tick() остановит по прижатию обоих.
                 // Направление вниз = знак, противоположный хоумингу (там "-").
-                m_stepper->moveTo(m_stepper->currentPosition() + 100000, 400.0f);
+                m_stepper->moveTo(m_stepper->currentPosition() + 100000, g_state.chargeSpeed);
             }
             break;
 
@@ -87,7 +87,7 @@ void StateMachine::transitionTo(Screen next) {
                 // Хоуминг: едем в сторону концевика TOP большим ходом (~31 об при 3200/об);
                 // tick() остановит и обнулит позицию по срабатыванию SW_TOP.
                 // Если едет НЕ в ту сторону — поменяй "-" на "+" ниже.
-                m_stepper->moveTo(m_stepper->currentPosition() - 100000, 800.0f);
+                m_stepper->moveTo(m_stepper->currentPosition() - 100000, g_state.parkSpeed);
             }
             break;
 

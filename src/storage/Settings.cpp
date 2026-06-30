@@ -37,6 +37,8 @@ bool Settings::load() {
     g_state.fontIndex       = doc["fontIndex"]     | (uint8_t)DEFAULT_FONT_INDEX;
     if (g_state.fontIndex >= 4) g_state.fontIndex = DEFAULT_FONT_INDEX;
     g_state.circularNav     = doc["circularNav"]   | true;
+    g_state.parkSpeed       = doc["parkSpeed"]     | 800.0f;
+    g_state.chargeSpeed     = doc["chargeSpeed"]   | 400.0f;
 
     JsonArray presets = doc["presets"].as<JsonArray>();
     if (presets) {
@@ -74,6 +76,8 @@ bool Settings::save() {
     doc["sleepTimeout"] = g_state.sleepTimeoutSec;
     doc["fontIndex"]    = g_state.fontIndex;
     doc["circularNav"]  = g_state.circularNav;
+    doc["parkSpeed"]    = g_state.parkSpeed;
+    doc["chargeSpeed"]  = g_state.chargeSpeed;
 
     JsonArray arr = doc["presets"].to<JsonArray>();
     for (int i = 0; i < g_state.presetsCount; i++) {
