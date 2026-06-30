@@ -70,10 +70,10 @@ void RealStepper::moveTo(int32_t targetSteps, float speedStepsPerSec) {
     if (delta == 0) { stop(); return; }
 
     int8_t dir = (delta > 0) ? 1 : -1;
-    // Конвенция направления: положительные шаги → DIR HIGH.
-    // Если мотор крутится не в ту сторону — поменяйте местами провода
-    // обмотки ИЛИ инвертируйте эту строку.
-    digitalWrite(STEP_DIR_PIN, (dir > 0) ? HIGH : LOW);
+    // Конвенция направления ИНВЕРТИРОВАНА: положительные шаги → DIR LOW.
+    // (Переворачивает физическое направление всех движений; счётчик позиции
+    //  остаётся логически верным. Вернуть обратно — поменять LOW/HIGH местами.)
+    digitalWrite(STEP_DIR_PIN, (dir > 0) ? LOW : HIGH);
 
     float spd = speedStepsPerSec;
     if (spd < 1.0f) spd = 1.0f;
