@@ -112,6 +112,12 @@ bool RealStepper::isBusy() const {
     return s_running;
 }
 
+void RealStepper::zero() {
+    noInterrupts();
+    s_pos = 0;
+    interrupts();
+}
+
 void RealStepper::enable() {
     digitalWrite(STEP_EN_PIN, LOW);    // active-LOW
 }

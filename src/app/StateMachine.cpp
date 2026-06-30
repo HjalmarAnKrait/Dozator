@@ -76,7 +76,13 @@ void StateMachine::transitionTo(Screen next) {
 
         case Screen::PARKING:
             g_state.switches = {false, false, false, false};
-            if (m_stepper) { m_stepper->enable(); m_stepper->moveTo(0, 800.0f); }
+            if (m_stepper) {
+                m_stepper->enable();
+                // Хоуминг: едем в сторону концевика TOP большим ходом (~31 об при 3200/об);
+                // tick() остановит и обнулит позицию по срабатыванию SW_TOP.
+                // Если едет НЕ в ту сторону — поменяй "-" на "+" ниже.
+                m_stepper->moveTo(m_stepper->currentPosition() - 100000, 800.0f);
+            }
             break;
 
         default:
@@ -100,7 +106,11 @@ void StateMachine::tick(uint32_t nowMs) {
 
     switch (g_state.screen) {
         case Screen::PARKING:
-            if (sw.top) { transitionTo(Screen::PARKED); return; }
+            if (sw.top) {
+                if (m_stepper) { m_stepper->stop(); m_stepper->zero(); }  // дома → позиция 0
+                transitionTo(Screen::PARKED);
+                return;
+            }
             break;
 
         case Screen::CHARGING:

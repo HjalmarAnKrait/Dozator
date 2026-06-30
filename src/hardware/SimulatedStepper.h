@@ -7,6 +7,7 @@ public:
     void    stop() override;
     int32_t currentPosition() const override { return m_pos; }
     bool    isBusy() const override          { return m_pos != m_target; }
+    void    zero() override                  { m_pos = 0; m_target = 0; }
     void    enable()  override { m_enabled = true;  }
     void    disable() override { m_enabled = false; }
     void    tick(uint32_t nowMs) override;

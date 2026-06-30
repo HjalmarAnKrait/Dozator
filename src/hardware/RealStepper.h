@@ -18,6 +18,7 @@ public:
     void    stop() override;
     int32_t currentPosition() const override;
     bool    isBusy() const override;
+    void    zero() override;
     void    enable()  override;
     void    disable() override;
     void    tick(uint32_t nowMs) override;   // no-op: всё в ISR

@@ -13,6 +13,9 @@ public:
     virtual int32_t currentPosition() const = 0;
     virtual bool    isBusy() const = 0;
 
+    /** Принять текущую позицию за 0 (после хоуминга по концевику). */
+    virtual void    zero() = 0;
+
     virtual void enable()  = 0;
     virtual void disable() = 0;
 
