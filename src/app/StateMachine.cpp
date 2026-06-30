@@ -35,6 +35,12 @@ void StateMachine::transitionTo(Screen next) {
     g_state.lastInteractionMs = millis();
 
     switch (next) {
+        case Screen::IDLE:
+            // Простой: ничего не двигаем (никаких шагов при старте).
+            g_state.switches = {false, false, false, false};
+            if (m_stepper) m_stepper->disable();
+            break;
+
         case Screen::PARKED:
             g_state.switches = {true, false, false, false};
             if (m_stepper) m_stepper->disable();

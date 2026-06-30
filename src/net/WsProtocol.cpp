@@ -93,19 +93,24 @@ void WsProtocol::handleSetPreset(int index, float vol, float diam) {
 
 void WsProtocol::handleCommand(const char* action) {
     if (!m_sm) return;
-    if      (strcmp(action, "start_charging") == 0 && g_state.screen == Screen::PARKED)
+    // Парковка запускается только по команде пользователя (из простоя/после цикла).
+    if      (strcmp(action, "park") == 0 &&
+             (g_state.screen == Screen::IDLE || g_state.screen == Screen::DONE))
+        m_sm->transitionTo(Screen::PARKING);
+    else if (strcmp(action, "start_charging") == 0 && g_state.screen == Screen::PARKED)
         m_sm->transitionTo(Screen::CHARGING);
     else if (strcmp(action, "pusk") == 0 && g_state.screen == Screen::CHARGED) {
         m_sm->transitionTo(Screen::DOSING);
     } else if (strcmp(action, "abort") == 0 && g_state.screen == Screen::DOSING) {
         m_sm->transitionTo(Screen::DONE);
     } else if (strcmp(action, "new_cycle") == 0 && g_state.screen == Screen::DONE) {
-        m_sm->transitionTo(Screen::PARKING);
+        m_sm->transitionTo(Screen::IDLE);   // без автопарковки — ждём команду «Парковка»
     }
 }
 
 static const char* screenName(Screen s) {
     switch (s) {
+        case Screen::IDLE:                 return "IDLE";
         case Screen::PARKING:              return "PARKING";
         case Screen::PARKED:               return "PARKED";
         case Screen::CHARGING:             return "CHARGING";

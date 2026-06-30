@@ -30,7 +30,7 @@ const T_CHARGE_B = 1700;    // мс до B (A + 800)
 
 // ── Мок-состояние (зеркало AppState) ───────────────────────────────────────
 const state = {
-  screen: 'PARKING',
+  screen: 'IDLE',
   screwPitch: 2.0,
   sleepTimeout: 15,
   presets: [
@@ -103,6 +103,9 @@ function transitionTo(next) {
   state.screen = next;
   screenEnterMs = Date.now();
   switch (next) {
+    case 'IDLE':
+      state.switches = { top: false, a: false, b: false, bot: false };
+      break;
     case 'PARKED':
       state.switches = { top: true, a: false, b: false, bot: false };
       break;
@@ -168,10 +171,11 @@ function handleMessage(msg) {
 }
 
 function handleCommand(action) {
-  if (action === 'start_charging' && state.screen === 'PARKED') transitionTo('CHARGING');
+  if (action === 'park' && (state.screen === 'IDLE' || state.screen === 'DONE')) transitionTo('PARKING');
+  else if (action === 'start_charging' && state.screen === 'PARKED') transitionTo('CHARGING');
   else if (action === 'pusk' && state.screen === 'CHARGED') transitionTo('DOSING');
   else if (action === 'abort' && state.screen === 'DOSING') transitionTo('DONE');
-  else if (action === 'new_cycle' && state.screen === 'DONE') transitionTo('PARKING');
+  else if (action === 'new_cycle' && state.screen === 'DONE') transitionTo('IDLE');
 }
 
 function handleDirectSet(field, value) {

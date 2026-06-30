@@ -44,7 +44,7 @@
 }
 ```
 
-- `screen`: `PARKING · PARKED · CHARGING · CHARGED · DOSING · DONE`.
+- `screen`: `IDLE · PARKING · PARKED · CHARGING · CHARGED · DOSING · DONE`.
 - `switches` — сценарное состояние стадии (что «должно быть»).
 - **`rawSwitches` — живые показания концевиков** (`ILimitSwitches::read()`),
   обновляются при любом изменении. Использовать для постоянной отладочной
@@ -71,10 +71,14 @@
 
 | Команда | Требуемый экран | Переход |
 |---------|-----------------|---------|
+| `park`           | IDLE / DONE | → PARKING |
 | `start_charging` | PARKED  | → CHARGING |
 | `pusk`           | CHARGED | → DOSING |
 | `abort`          | DOSING  | → DONE |
-| `new_cycle`      | DONE    | → PARKING |
+| `new_cycle`      | DONE    | → IDLE |
+
+При включении устройство в `IDLE` — ничего не двигается; парковка стартует только
+по команде `park` (кнопка «Парковка» в UI).
 
 ### `direct_set` – прямая установка значений
 

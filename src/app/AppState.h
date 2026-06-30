@@ -30,6 +30,7 @@ struct SwitchStates {
 };
 
 enum class Screen : uint8_t {
+    IDLE,        // стартовое состояние: ничего не делаем, ждём команды пользователя
     PARKING,
     PARKED,
     CHARGING,
@@ -50,7 +51,7 @@ struct BreadcrumbEntry {
 };
 
 struct AppState {
-    Screen  screen      = Screen::PARKING;
+    Screen  screen      = Screen::IDLE;
     uint8_t cursorIndex = 0;
     bool    editing     = false;
 

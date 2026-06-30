@@ -30,6 +30,15 @@
     <!-- Текущая стадия -->
     <div class="stage-tag" id="stage-tag">—</div>
 
+    <!-- ── IDLE: стартовый простой, парковка только по кнопке ───────────── -->
+    <section class="card screen" data-screen="IDLE" hidden>
+      <div class="big-status">
+        <h2>Простой</h2>
+        <p>Устройство готово. Нажми «Парковка», чтобы начать цикл.</p>
+      </div>
+      <button class="btn btn-primary btn-xl" data-cmd="park">⌂ Парковка</button>
+    </section>
+
     <!-- ── PARKING ──────────────────────────────────────────────────────── -->
     <section class="card screen" data-screen="PARKING" hidden>
       <div class="big-status">

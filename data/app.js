@@ -76,6 +76,7 @@ function getRange(field) {
 const fmtRange = (r) => `${fmt(Math.ceil(r.min * 100) / 100)}–${fmt(Math.floor(r.max * 100) / 100)}`;
 
 const STAGE_RU = {
+  IDLE:     'Простой',
   PARKING:  'Парковка',
   PARKED:   'Готов',
   CHARGING: 'Зарядка',
@@ -83,7 +84,7 @@ const STAGE_RU = {
   DOSING:   'Дозирование',
   DONE:     'Готово',
 };
-const KNOWN = ['PARKING', 'PARKED', 'CHARGING', 'CHARGED', 'DOSING', 'DONE'];
+const KNOWN = ['IDLE', 'PARKING', 'PARKED', 'CHARGING', 'CHARGED', 'DOSING', 'DONE'];
 
 // ─── Render ─────────────────────────────────────────────────────────────────
 function render(s) {

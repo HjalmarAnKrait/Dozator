@@ -51,7 +51,7 @@ void setup() {
 
     // 3. State machine
     g_sm.begin(g_stepper, g_switches, &g_settings);
-    g_sm.transitionTo(Screen::PARKING);
+    g_sm.transitionTo(Screen::IDLE);   // при включении ничего не двигаем; парковка — по команде
 
     // 4. WiFi AP + captive portal + web server
     g_wifiAp.begin(WIFI_SSID, WIFI_PASSWORD);

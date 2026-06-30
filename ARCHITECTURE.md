@@ -49,13 +49,14 @@ WsProtocol::handleMessage ──► StateMachine::transitionTo / g_state
 ## Цикл состояний
 
 ```
-PARKING ──TOP──► PARKED ──[start_charging]──► CHARGING ──A&B──► CHARGED
-   ▲                                                              │
-   └──────────[new_cycle]── DONE ◄──BOT/таймер── DOSING ◄─[pusk]──┘
+IDLE ──[park]──► PARKING ──TOP──► PARKED ──[start_charging]──► CHARGING ──A&B──► CHARGED
+ ▲                                                                                  │
+ └────────────────[new_cycle]── DONE ◄──BOT/таймер── DOSING ◄────────────[pusk]─────┘
 ```
 
-`Screen` enum содержит только эти 6 стадий (сервисных экранов нет — настройки
-задаются через `direct_set`/`set_preset` в любой момент).
+При включении — `IDLE` (ничего не двигается). Парковка стартует только по команде
+`park` (кнопка в UI), не автоматически. `Screen` enum: IDLE + 6 стадий цикла
+(сервисных экранов нет — настройки через `direct_set`/`set_preset` в любой момент).
 
 ## Ключевые решения
 
