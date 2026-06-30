@@ -93,6 +93,11 @@ void WsProtocol::handleSetPreset(int index, float vol, float diam) {
 
 void WsProtocol::handleCommand(const char* action) {
     if (!m_sm) return;
+    // Сброс: из ЛЮБОГО состояния — остановиться и уехать на парковку (хоуминг).
+    if (strcmp(action, "reset") == 0) {
+        m_sm->transitionTo(Screen::PARKING);
+        return;
+    }
     // Парковка запускается только по команде пользователя (из простоя/после цикла).
     if      (strcmp(action, "park") == 0 &&
              (g_state.screen == Screen::IDLE || g_state.screen == Screen::DONE))

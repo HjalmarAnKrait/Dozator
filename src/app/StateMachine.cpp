@@ -48,12 +48,18 @@ void StateMachine::transitionTo(Screen next) {
 
         case Screen::CHARGING:
             g_state.switches = {false, false, false, false};
-            if (m_stepper) m_stepper->enable();
+            if (m_stepper) {
+                m_stepper->enable();
+                // Плавный спуск к концевикам A/B; tick() остановит по прижатию обоих.
+                // Направление вниз = знак, противоположный хоумингу (там "-").
+                m_stepper->moveTo(m_stepper->currentPosition() + 100000, 400.0f);
+            }
             break;
 
         case Screen::CHARGED:
             g_state.switches.a = true;
             g_state.switches.b = true;
+            if (m_stepper) m_stepper->stop();   // оба концевика прижаты — стоп
             break;
 
         case Screen::DOSING: {

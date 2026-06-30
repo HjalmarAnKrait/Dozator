@@ -94,6 +94,22 @@ body {
   box-shadow: 0 0 9px var(--led-on);
 }
 
+/* Глобальная кнопка сброса в шапке */
+.btn-reset {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  border: 1px solid var(--danger);
+  background: rgba(224, 71, 62, 0.14);
+  color: var(--danger);
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 9px;
+  cursor: pointer;
+}
+.btn-reset:active { background: rgba(224, 71, 62, 0.28); }
+
 /* ── Контент ──────────────────────────────────────────────────────────── */
 main { padding: 16px 14px; max-width: 560px; margin: 0 auto; }
 

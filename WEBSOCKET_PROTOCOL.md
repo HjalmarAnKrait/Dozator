@@ -71,6 +71,7 @@
 
 | Команда | Требуемый экран | Переход |
 |---------|-----------------|---------|
+| `reset`          | любой   | → PARKING (стоп + хоуминг) |
 | `park`           | IDLE / DONE | → PARKING |
 | `start_charging` | PARKED  | → CHARGING |
 | `pusk`           | CHARGED | → DOSING |

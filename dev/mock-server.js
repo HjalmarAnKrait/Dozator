@@ -171,6 +171,7 @@ function handleMessage(msg) {
 }
 
 function handleCommand(action) {
+  if (action === 'reset') return transitionTo('PARKING');   // стоп + парковка из любого состояния
   if (action === 'park' && (state.screen === 'IDLE' || state.screen === 'DONE')) transitionTo('PARKING');
   else if (action === 'start_charging' && state.screen === 'PARKED') transitionTo('CHARGING');
   else if (action === 'pusk' && state.screen === 'CHARGED') transitionTo('DOSING');

@@ -1,5 +1,6 @@
 #include "RealStepper.h"
 #include "config.h"
+#include "../util/Logger.h"
 
 /**
  * Реализация шагового драйвера на timer1.
@@ -89,6 +90,9 @@ void RealStepper::moveTo(int32_t targetSteps, float speedStepsPerSec) {
 
     timer1_enable(TIM_DIV16, TIM_EDGE, TIM_LOOP);
     timer1_write(ticks);
+
+    LOG_INFO("Stepper moveTo target=%ld pos=%ld rem=%ld dir=%d ticks=%u",
+             (long)targetSteps, (long)s_pos, (long)s_remaining, (int)dir, ticks);
 }
 
 void RealStepper::stop() {
