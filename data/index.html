@@ -113,8 +113,15 @@
       <div class="big-status">
         <div class="done-check">✓</div>
         <h2>Готово</h2>
-        <p>Цикл завершён.</p>
       </div>
+      <div class="planfact">
+        <div class="pf-row pf-head"><span></span><b>План</b><b>Факт</b></div>
+        <div class="pf-row"><span>Шприц A, мл</span><b id="pf-plan-a">—</b><b id="pf-fact-a">—</b></div>
+        <div class="pf-row"><span>Шприц B, мл</span><b id="pf-plan-b">—</b><b id="pf-fact-b">—</b></div>
+        <div class="pf-row"><span>Время, с</span><b id="pf-plan-t">—</b><b id="pf-fact-t">—</b></div>
+        <div class="pf-row pf-fill"><span>Выполнено</span><b></b><b id="pf-pct">—</b></div>
+      </div>
+      <p class="pf-note" id="pf-note"></p>
       <button class="btn btn-primary btn-xl" data-cmd="new_cycle">↻ Новый цикл</button>
     </section>
 

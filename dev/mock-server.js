@@ -153,6 +153,9 @@ function tick() {
       state.dosing.volumeA = volOf(state.syringeA) * state.dosing.progress;
       state.dosing.volumeB = volOf(state.syringeB) * state.dosing.progress;
       changed = true;
+      // ДЕМО: имитируем срабатывание концевика BOT раньше таймера (на 85%),
+      // чтобы показать план/факт. progress НЕ форсим в 1 — фиксируем факт.
+      if (state.dosing.progress >= 0.85) { state.rawSwitches.bot = true; transitionTo('DONE'); return; }
       if (simElapsed >= state.dosing.totalSec) { state.dosing.progress = 1; state.rawSwitches.bot = true; transitionTo('DONE'); return; }
       break;
     }

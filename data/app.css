@@ -265,6 +265,29 @@ select {
   text-align: center;
 }
 
+/* ── План/факт на экране «Готово» ─────────────────────────────────────── */
+.planfact {
+  margin: 18px 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.pf-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  align-items: center;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.pf-row:last-child { border-bottom: none; }
+.pf-row span { color: var(--muted); font-size: 14px; }
+.pf-row b { text-align: right; font-size: 17px; }
+.pf-head { background: var(--card2); }
+.pf-head b { color: var(--muted); font-size: 13px; font-weight: 600; }
+.pf-fill b:last-child { color: var(--ok); }
+.pf-note { text-align: center; font-size: 13px; color: var(--muted); margin: 10px 0 0; }
+.pf-note.warn { color: var(--warn); }
+
 /* ── Настройки ────────────────────────────────────────────────────────── */
 .settings {
   background: var(--card);

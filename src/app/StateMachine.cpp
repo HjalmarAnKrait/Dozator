@@ -126,18 +126,18 @@ void StateMachine::tick(uint32_t nowMs) {
             break;
 
         case Screen::DOSING: {
+            float total = g_state.dosing.totalSec;
             float simElapsed = ((nowMs - m_dosingStartMs) / 1000.0f) * SIM_TIME_FACTOR;
-            simElapsed = min(simElapsed, g_state.dosing.totalSec);
+            simElapsed = min(simElapsed, total);
+            bool byTimer = (simElapsed >= total);
+            bool done    = sw.bot || byTimer;
             g_state.dosing.elapsedSec = simElapsed;
-            if (g_state.dosing.totalSec > 0)
-                g_state.dosing.progress = simElapsed / g_state.dosing.totalSec;
-            g_state.dosing.volumeA = calc::volA() * g_state.dosing.progress;
-            g_state.dosing.volumeB = calc::volB() * g_state.dosing.progress;
-            if (sw.bot || simElapsed >= g_state.dosing.totalSec) {
-                g_state.dosing.progress = 1.0f;
-                transitionTo(Screen::DONE);
-                return;
-            }
+            // На РАННЕМ срабатывании BOT прогресс НЕ форсим в 100% — фиксируем факт
+            // (план = полный объём шприца, факт = сколько успели по реальному ходу).
+            g_state.dosing.progress = (total > 0) ? (byTimer ? 1.0f : simElapsed / total) : 0.0f;
+            g_state.dosing.volumeA  = calc::volA() * g_state.dosing.progress;
+            g_state.dosing.volumeB  = calc::volB() * g_state.dosing.progress;
+            if (done) { transitionTo(Screen::DONE); return; }
             requestBroadcast();
             break;
         }

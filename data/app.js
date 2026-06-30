@@ -106,6 +106,7 @@ function render(s) {
     case 'PARKED':  renderParked(s);  break;
     case 'CHARGED': renderCharged(s); break;
     case 'DOSING':  renderDosing(s);  break;
+    case 'DONE':    renderDone(s);    break;
   }
 
   // 4) Настройки (в любой момент)
@@ -165,6 +166,26 @@ function renderDosing(s) {
   $('dose-total').textContent = Math.round(d.totalSec || 0);
   $('vol-a').textContent = fmt(d.volumeA);
   $('vol-b').textContent = fmt(d.volumeB);
+}
+
+function renderDone(s) {
+  const c = s.cycle || {}, d = s.dosing || {};
+  const planA = c.syringeA?.volume || 0;
+  const planB = c.syringeB?.volume || 0;
+  $('pf-plan-a').textContent = fmt(planA);
+  $('pf-fact-a').textContent = fmt(d.volumeA || 0);
+  $('pf-plan-b').textContent = fmt(planB);
+  $('pf-fact-b').textContent = fmt(d.volumeB || 0);
+  $('pf-plan-t').textContent = Math.round(d.totalSec || 0);
+  $('pf-fact-t').textContent = Math.round(d.elapsedSec || 0);
+  const pct = Math.round((d.progress || 0) * 100);
+  $('pf-pct').textContent = pct + '%';
+  const early = (d.progress || 0) < 0.999;
+  const note = $('pf-note');
+  note.textContent = early
+    ? '⚠ Концевик BOT сработал раньше времени — выдавлено меньше плана'
+    : '✓ Выдавлен полный плановый объём';
+  note.classList.toggle('warn', early);
 }
 
 function renderSettings(s) {
