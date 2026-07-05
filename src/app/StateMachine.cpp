@@ -68,9 +68,12 @@ void StateMachine::transitionTo(Screen next) {
             if (m_stepper) {
                 float rpm   = calc::motorRpm();
                 float speed = max(1.0f, rpm * FULL_STEPS_PER_REV / 60.0f);
-                int32_t tgt = (int32_t)(g_state.dosing.totalSec * speed);
+                // Полное число микрошагов, чтобы выдавить весь объём за totalSec.
+                m_dosingTargetSteps = (int32_t)(g_state.dosing.totalSec * speed);
+                if (m_dosingTargetSteps < 1) m_dosingTargetSteps = 1;
+                m_stepper->zero();                              // отсчёт дозы от 0
                 m_stepper->enable();
-                m_stepper->moveTo(tgt, speed);
+                m_stepper->moveTo(m_dosingTargetSteps, speed);  // +N шагов от текущей позиции
             }
             break;
         }
@@ -126,21 +129,29 @@ void StateMachine::tick(uint32_t nowMs) {
 
         case Screen::DOSING: {
             float total = g_state.dosing.totalSec;
-            float simElapsed = ((nowMs - m_dosingStartMs) / 1000.0f) * SIM_TIME_FACTOR;
-            simElapsed = min(simElapsed, total);
-            bool byTimer = (simElapsed >= total);
-            bool done    = sw.bot || byTimer;
-            g_state.dosing.elapsedSec = simElapsed;
-            // На РАННЕМ срабатывании BOT прогресс НЕ форсим в 100% — фиксируем факт
-            // (план = полный объём шприца, факт = сколько успели по реальному ходу).
-            g_state.dosing.progress = (total > 0) ? (byTimer ? 1.0f : simElapsed / total) : 0.0f;
-            g_state.dosing.volumeA  = calc::volA() * g_state.dosing.progress;
-            g_state.dosing.volumeB  = calc::volB() * g_state.dosing.progress;
-            if (done) {
-                g_state.doneReason = byTimer ? DoneReason::TIMER : DoneReason::BOT;
+            // Секундомер — реальное время с момента ПУСК (для отображения).
+            float elapsed = (nowMs >= m_dosingStartMs) ? (nowMs - m_dosingStartMs) / 1000.0f : 0.0f;
+            g_state.dosing.elapsedSec = min(elapsed, total);
+
+            // Прогресс и выдавленный объём — по ФАКТИЧЕСКИМ шагам мотора (не по времени).
+            int32_t pos = m_stepper ? m_stepper->currentPosition() : 0;
+            int32_t tgt = (m_dosingTargetSteps > 0) ? m_dosingTargetSteps : 1;
+            float progress = constrain((float)pos / (float)tgt, 0.0f, 1.0f);
+
+            bool byBot  = sw.bot;                                      // концевик раньше времени
+            bool byDone = (pos >= tgt) || (m_stepper && !m_stepper->isBusy());  // мотор отработал все шаги
+            if (byBot || byDone) {
+                if (!byBot) progress = 1.0f;
+                g_state.doneReason = byBot ? DoneReason::BOT : DoneReason::TIMER;
+                g_state.dosing.progress = progress;
+                g_state.dosing.volumeA  = calc::volA() * progress;
+                g_state.dosing.volumeB  = calc::volB() * progress;
                 transitionTo(Screen::DONE);
                 return;
             }
+            g_state.dosing.progress = progress;
+            g_state.dosing.volumeA  = calc::volA() * progress;
+            g_state.dosing.volumeB  = calc::volB() * progress;
             requestBroadcast();
             break;
         }

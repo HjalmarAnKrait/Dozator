@@ -33,6 +33,7 @@ private:
 
     bool     m_broadcastPending = false;
     uint32_t m_dosingStartMs    = 0;
+    int32_t  m_dosingTargetSteps = 0;   // сколько микрошагов = выдавить весь объём
 
     static bool sleepAllowed(Screen s);
 };
