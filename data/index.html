@@ -85,7 +85,7 @@
     <section class="card screen" data-screen="CHARGED" hidden>
       <h2>Заряжено</h2>
       <label id="dose-time-label">Время дозирования, мин</label>
-      <input type="number" id="dose-time" step="0.1" min="0.1" max="999" inputmode="decimal">
+      <input type="number" id="dose-time" step="0.1" min="0.3" max="20" inputmode="decimal">
       <div class="flows">
         <div class="flow"><span>Поток A</span><b id="flow-a">—</b><small>мл/мин</small></div>
         <div class="flow"><span>Поток B</span><b id="flow-b">—</b><small>мл/мин</small></div>
@@ -96,6 +96,7 @@
     <!-- ── DOSING: прогресс + стоп ──────────────────────────────────────── -->
     <section class="card screen" data-screen="DOSING" hidden>
       <h2>Дозирование</h2>
+      <div class="stopwatch" id="dose-sw" title="Время с момента ПУСК">0:00</div>
       <div class="progress-wrap">
         <div class="progress-num" id="dose-pct">0%</div>
         <div class="progress-bar"><div class="progress-fill" id="dose-fill"></div></div>
@@ -138,20 +139,20 @@
       <summary>⚙ Настройки</summary>
       <div class="settings-body">
         <div class="set-row">
-          <label>Шаг винта, мм/об (0.5–10)</label>
-          <input type="number" id="set-pitch" step="0.5" min="0.5" max="10" inputmode="decimal">
+          <label>Шаг винта, мм/об (0.5–20)</label>
+          <input type="number" id="set-pitch" step="0.5" min="0.5" max="20" inputmode="decimal">
         </div>
         <div class="set-row">
           <label>Сон, с (5–300)</label>
           <input type="number" id="set-sleep" step="5" min="5" max="300" inputmode="numeric">
         </div>
         <div class="set-row">
-          <label>Скорость парковки, шаг/с (50–3000)</label>
-          <input type="number" id="set-parkspeed" step="50" min="50" max="3000" inputmode="numeric">
+          <label>Скорость парковки, шаг/с (50–15000)</label>
+          <input type="number" id="set-parkspeed" step="50" min="50" max="15000" inputmode="numeric">
         </div>
         <div class="set-row">
-          <label>Скорость зарядки, шаг/с (50–3000)</label>
-          <input type="number" id="set-chargespeed" step="50" min="50" max="3000" inputmode="numeric">
+          <label>Скорость зарядки, шаг/с (50–15000)</label>
+          <input type="number" id="set-chargespeed" step="50" min="50" max="15000" inputmode="numeric">
         </div>
 
         <div class="presets" id="presets-block">

@@ -222,6 +222,16 @@ select {
 .flow b { display: block; font-size: 26px; margin: 4px 0; }
 .flow small { font-size: 11px; color: var(--muted); }
 
+/* ── Секундомер дозирования ───────────────────────────────────────────── */
+.stopwatch {
+  text-align: center;
+  font-size: 40px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--primary);
+  margin: 2px 0 14px;
+}
+
 /* ── Прогресс дозирования ─────────────────────────────────────────────── */
 .progress-wrap { text-align: center; }
 .progress-num { font-size: 52px; font-weight: 700; }

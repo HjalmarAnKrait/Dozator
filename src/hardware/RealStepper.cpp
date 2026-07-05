@@ -25,8 +25,9 @@ static volatile int8_t  s_dir       = 1;   // +1 / -1
 static volatile bool    s_level     = false; // текущий уровень STEP
 static volatile bool    s_running   = false;
 
-// Защита min/max интервала таймера (тики @5МГц): ~25 кшаг/с .. ~1.6 с/шаг.
-static constexpr uint32_t TICKS_MIN = 200;        // 40 мкс полупериод
+// Защита min/max интервала таймера (тики @5МГц). TICKS_MIN=120 → до ~20800 шаг/с
+// (покрывает лимит UI 15000). TICKS_MAX → ~1.6 с/шаг.
+static constexpr uint32_t TICKS_MIN = 120;        // ~24 мкс полупериод
 static constexpr uint32_t TICKS_MAX = 8000000UL;
 
 static void IRAM_ATTR stepISR() {

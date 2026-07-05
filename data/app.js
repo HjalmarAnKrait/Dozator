@@ -49,12 +49,14 @@ function setVal(el, v) {
 const RANGES = {
   'syringeA.diameter': { min: 1,   max: 150 },
   'syringeB.diameter': { min: 1,   max: 150 },
-  'doseTimeMin':       { min: 0.1, max: 999 },
-  'screwPitch':        { min: 0.5, max: 10  },
+  'doseTimeMin':       { min: 0.3, max: 20  },
+  'screwPitch':        { min: 0.5, max: 20  },
   'sleepTimeout':      { min: 5,   max: 300 },
-  'parkSpeed':         { min: 50,  max: 3000 },
-  'chargeSpeed':       { min: 50,  max: 3000 },
+  'parkSpeed':         { min: 50,  max: 15000 },
+  'chargeSpeed':       { min: 50,  max: 15000 },
 };
+const DOSE_TIME_MIN = 0.3;   // жёсткий пол времени дозирования, мин
+const DOSE_TIME_MAX = 20;    // жёсткий потолок, мин
 const PRESET_RANGE = { vol: { min: 1, max: 500 }, diam: { min: 1, max: 150 } };
 
 // Парсит и проверяет диапазон. Возвращает число или null (пусто/неполно/вне диапазона).
@@ -71,7 +73,10 @@ const markInvalid = (el, bad) => el.classList.toggle('invalid', bad);
 // под текущие шприцы/шаг приходит в state.cycle.timeMin/timeMax).
 function getRange(field) {
   if (field === 'doseTimeMin' && lastState?.cycle && lastState.cycle.timeMax > 0) {
-    return { min: lastState.cycle.timeMin, max: lastState.cycle.timeMax };
+    return {
+      min: Math.max(lastState.cycle.timeMin, DOSE_TIME_MIN),
+      max: Math.min(lastState.cycle.timeMax, DOSE_TIME_MAX),
+    };
   }
   return RANGES[field];
 }
@@ -110,6 +115,7 @@ function render(s) {
     case 'DOSING':  renderDosing(s);  break;
     case 'DONE':    renderDone(s);    break;
   }
+  if (screen !== 'DOSING') stopwatchStop();
 
   // 4) Настройки (в любой момент)
   renderSettings(s);
@@ -155,9 +161,29 @@ function renderCharged(s) {
   $('flow-b').textContent = fmt(c.flowB);
   // Подпись с физически допустимым диапазоном под текущие шприцы/шаг.
   $('dose-time-label').textContent = (c.timeMax > 0)
-    ? `Время дозирования, мин (${fmtRange({ min: c.timeMin, max: c.timeMax })})`
+    ? `Время дозирования, мин (${fmtRange({ min: Math.max(c.timeMin, DOSE_TIME_MIN), max: Math.min(c.timeMax, DOSE_TIME_MAX) })})`
     : 'Время дозирования, мин';
 }
+
+// ─── Секундомер дозирования (тикает на клиенте, синхронно с elapsedSec) ──────
+let swTimer = null, swBaseSec = 0, swBaseAt = 0;
+function fmtMMSS(sec) {
+  sec = Math.max(0, Math.floor(sec));
+  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+}
+function stopwatchSync(elapsedSec) {
+  swBaseSec = elapsedSec || 0;
+  swBaseAt = Date.now();
+  const el = $('dose-sw');
+  if (el) el.textContent = fmtMMSS(swBaseSec);
+  if (!swTimer) {
+    swTimer = setInterval(() => {
+      const el2 = $('dose-sw');
+      if (el2) el2.textContent = fmtMMSS(swBaseSec + (Date.now() - swBaseAt) / 1000);
+    }, 250);
+  }
+}
+function stopwatchStop() { if (swTimer) { clearInterval(swTimer); swTimer = null; } }
 
 function renderDosing(s) {
   const d = s.dosing || {};
@@ -168,6 +194,7 @@ function renderDosing(s) {
   $('dose-total').textContent = Math.round(d.totalSec || 0);
   $('vol-a').textContent = fmt(d.volumeA);
   $('vol-b').textContent = fmt(d.volumeB);
+  stopwatchSync(d.elapsedSec);
 }
 
 function renderDone(s) {

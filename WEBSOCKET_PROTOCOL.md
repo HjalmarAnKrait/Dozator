@@ -96,8 +96,8 @@
 | `syringeB.presetIdx` / `syringeB.diameter` | PARKED |
 | `screwPitch` | любой |
 | `sleepTimeout` | любой |
-| `parkSpeed` (шаг/с, 50–3000) | любой |
-| `chargeSpeed` (шаг/с, 50–3000) | любой |
+| `parkSpeed` (шаг/с, 50–15000) | любой |
+| `chargeSpeed` (шаг/с, 50–15000) | любой |
 
 Если поле недопустимо для текущего экрана — сервер ответит `{"type":"error"}`.
 

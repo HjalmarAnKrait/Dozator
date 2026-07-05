@@ -44,7 +44,7 @@ void WsProtocol::handleDebugSwitch(const char* sw, bool state) {
 void WsProtocol::handleDirectSet(const char* field, float value, AsyncWebSocketClient* client) {
     bool ok = true;
     if (strcmp(field, "doseTimeMin") == 0 && g_state.screen == Screen::CHARGED) {
-        g_state.doseTimeMin = max(0.1f, value);
+        g_state.doseTimeMin = constrain(value, 0.3f, 20.0f);
     } else if (strcmp(field, "syringeA.presetIdx") == 0 && g_state.screen == Screen::PARKED) {
         int idx = (int)value;
         if (idx >= 0 && idx < g_state.presetsCount) {
@@ -62,16 +62,16 @@ void WsProtocol::handleDirectSet(const char* field, float value, AsyncWebSocketC
     } else if (strcmp(field, "syringeB.diameter") == 0 && g_state.screen == Screen::PARKED) {
         g_state.syringeB.diameter = constrain(value, 1.0f, 150.0f);
     } else if (strcmp(field, "screwPitch") == 0) {
-        g_state.screwPitch = constrain(value, 0.5f, 10.0f);
+        g_state.screwPitch = constrain(value, 0.5f, 20.0f);
         m_settings->markDirty();
     } else if (strcmp(field, "sleepTimeout") == 0) {
         g_state.sleepTimeoutSec = (uint16_t)constrain(value, 5.0f, 300.0f);
         m_settings->markDirty();
     } else if (strcmp(field, "parkSpeed") == 0) {
-        g_state.parkSpeed = constrain(value, 50.0f, 3000.0f);
+        g_state.parkSpeed = constrain(value, 50.0f, 15000.0f);
         m_settings->markDirty();
     } else if (strcmp(field, "chargeSpeed") == 0) {
-        g_state.chargeSpeed = constrain(value, 50.0f, 3000.0f);
+        g_state.chargeSpeed = constrain(value, 50.0f, 15000.0f);
         m_settings->markDirty();
     } else {
         ok = false;

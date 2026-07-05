@@ -68,7 +68,7 @@ function timeRange() {
   const sA = area(state.syringeA.diameter);
   if (sA > 0 && state.screwPitch > 0) {
     tMin = Math.max(tMin, vA * 1000 / (300 * sA * state.screwPitch));  // MOTOR_RPM_MAX
-    tMax = Math.min(tMax, vA * 1000 / (10 * sA * state.screwPitch));   // MOTOR_RPM_MIN
+    tMax = Math.min(tMax, vA * 1000 / (1 * sA * state.screwPitch));    // MOTOR_RPM_MIN
   }
   if (tMin > tMax) tMin = tMax;
   return { min: tMin, max: tMax };
@@ -189,15 +189,15 @@ function handleCommand(action) {
 function handleDirectSet(field, value) {
   const v = Number(value);
   const inParked = state.screen === 'PARKED';
-  if (field === 'doseTimeMin' && state.screen === 'CHARGED') state.doseTimeMin = Math.max(0.1, v);
+  if (field === 'doseTimeMin' && state.screen === 'CHARGED') state.doseTimeMin = clamp(v, 0.3, 20);
   else if (field === 'syringeA.presetIdx' && inParked) { state.syringeA.presetIdx = v | 0; state.syringeA.diameter = state.presets[v | 0]?.diam ?? state.syringeA.diameter; }
   else if (field === 'syringeA.diameter' && inParked) state.syringeA.diameter = clamp(v, 1, 150);
   else if (field === 'syringeB.presetIdx' && inParked) { state.syringeB.presetIdx = v | 0; state.syringeB.diameter = state.presets[v | 0]?.diam ?? state.syringeB.diameter; }
   else if (field === 'syringeB.diameter' && inParked) state.syringeB.diameter = clamp(v, 1, 150);
-  else if (field === 'screwPitch') state.screwPitch = clamp(v, 0.5, 10);
+  else if (field === 'screwPitch') state.screwPitch = clamp(v, 0.5, 20);
   else if (field === 'sleepTimeout') state.sleepTimeout = clamp(v, 5, 300) | 0;
-  else if (field === 'parkSpeed') state.parkSpeed = clamp(v, 50, 3000);
-  else if (field === 'chargeSpeed') state.chargeSpeed = clamp(v, 50, 3000);
+  else if (field === 'parkSpeed') state.parkSpeed = clamp(v, 50, 15000);
+  else if (field === 'chargeSpeed') state.chargeSpeed = clamp(v, 50, 15000);
   broadcast();
 }
 
