@@ -51,7 +51,6 @@ const RANGES = {
   'syringeB.diameter': { min: 1,   max: 150 },
   'doseTimeMin':       { min: 0.3, max: 20  },
   'screwPitch':        { min: 0.5, max: 20  },
-  'sleepTimeout':      { min: 5,   max: 300 },
   'parkSpeed':         { min: 50,  max: 15000 },
   'chargeSpeed':       { min: 50,  max: 15000 },
 };
@@ -219,7 +218,6 @@ function renderDone(s) {
 
 function renderSettings(s) {
   setVal($('set-pitch'), fmt(s.settings?.screwPitch));
-  setVal($('set-sleep'), s.settings?.sleepTimeout ?? '');
   setVal($('set-parkspeed'), fmt(s.settings?.parkSpeed));
   setVal($('set-chargespeed'), fmt(s.settings?.chargeSpeed));
   renderPresets(s.settings?.presets || []);
@@ -284,7 +282,6 @@ bindNum('diam-a',    'syringeA.diameter');
 bindNum('diam-b',    'syringeB.diameter');
 bindNum('dose-time', 'doseTimeMin');
 bindNum('set-pitch', 'screwPitch');
-bindNum('set-sleep', 'sleepTimeout');
 bindNum('set-parkspeed', 'parkSpeed');
 bindNum('set-chargespeed', 'chargeSpeed');
 
