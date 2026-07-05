@@ -55,18 +55,18 @@
       <h2>Готов к зарядке</h2>
       <div class="syringe-grid">
         <div class="syringe">
-          <div class="syringe-title">Шприц A</div>
-          <label>Объём (пресет)</label>
-          <select id="sel-a"></select>
-          <label>Диаметр, мм (1–150)</label>
-          <input type="number" id="diam-a" step="0.1" min="1" max="150" inputmode="decimal">
-        </div>
-        <div class="syringe">
           <div class="syringe-title">Шприц B</div>
           <label>Объём (пресет)</label>
           <select id="sel-b"></select>
           <label>Диаметр, мм (1–150)</label>
           <input type="number" id="diam-b" step="0.1" min="1" max="150" inputmode="decimal">
+        </div>
+        <div class="syringe">
+          <div class="syringe-title">Шприц A</div>
+          <label>Объём (пресет)</label>
+          <select id="sel-a"></select>
+          <label>Диаметр, мм (1–150)</label>
+          <input type="number" id="diam-a" step="0.1" min="1" max="150" inputmode="decimal">
         </div>
       </div>
       <button class="btn btn-primary btn-xl" data-cmd="start_charging">Старт зарядки</button>
@@ -87,8 +87,8 @@
       <label id="dose-time-label">Время дозирования, мин</label>
       <input type="number" id="dose-time" step="0.1" min="0.3" max="20" inputmode="decimal">
       <div class="flows">
-        <div class="flow"><span>Поток A</span><b id="flow-a">—</b><small>мл/мин</small></div>
         <div class="flow"><span>Поток B</span><b id="flow-b">—</b><small>мл/мин</small></div>
+        <div class="flow"><span>Поток A</span><b id="flow-a">—</b><small>мл/мин</small></div>
       </div>
       <button class="btn btn-primary btn-xl" data-cmd="pusk">▶ ПУСК</button>
     </section>
@@ -103,8 +103,8 @@
         <div class="progress-time"><span id="dose-elapsed">0</span> / <span id="dose-total">0</span> с</div>
       </div>
       <div class="flows">
-        <div class="flow"><span>Объём A</span><b id="vol-a">0</b><small>мл</small></div>
         <div class="flow"><span>Объём B</span><b id="vol-b">0</b><small>мл</small></div>
+        <div class="flow"><span>Объём A</span><b id="vol-a">0</b><small>мл</small></div>
       </div>
       <button class="btn btn-danger btn-xl" data-cmd="abort">■ СТОП</button>
     </section>
@@ -117,8 +117,8 @@
       </div>
       <div class="planfact">
         <div class="pf-row pf-head"><span></span><b>План</b><b>Факт</b></div>
-        <div class="pf-row"><span>Шприц A, мл</span><b id="pf-plan-a">—</b><b id="pf-fact-a">—</b></div>
         <div class="pf-row"><span>Шприц B, мл</span><b id="pf-plan-b">—</b><b id="pf-fact-b">—</b></div>
+        <div class="pf-row"><span>Шприц A, мл</span><b id="pf-plan-a">—</b><b id="pf-fact-a">—</b></div>
         <div class="pf-row"><span>Время, с</span><b id="pf-plan-t">—</b><b id="pf-fact-t">—</b></div>
         <div class="pf-row pf-fill"><span>Выполнено</span><b></b><b id="pf-pct">—</b></div>
       </div>
