@@ -32,7 +32,7 @@ const T_CHARGE_B = 1700;    // мс до B (A + 800)
 const state = {
   screen: 'IDLE',
   doneReason: 'timer',
-  screwPitch: 2.0,
+  screwPitch: 8.0,
   sleepTimeout: 15,
   parkSpeed: 800,
   chargeSpeed: 400,

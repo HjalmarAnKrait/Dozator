@@ -59,7 +59,7 @@ struct AppState {
     bool    editing     = false;
 
     // ── Settings (persisted) ───────────────────────────────────────────────
-    float    screwPitch       = 2.0f;     // mm/rev
+    float    screwPitch       = 8.0f;     // mm/rev (ход винта; типовой Tr8x8 = 8)
     uint16_t sleepTimeoutSec  = DEFAULT_SLEEP_SEC;
     uint8_t  fontIndex        = DEFAULT_FONT_INDEX;
     bool     circularNav      = true;

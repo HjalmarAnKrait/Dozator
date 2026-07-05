@@ -32,7 +32,7 @@ bool Settings::load() {
         return false;
     }
 
-    g_state.screwPitch      = doc["screwPitch"]    | 2.0f;
+    g_state.screwPitch      = doc["screwPitch"]    | 8.0f;
     g_state.sleepTimeoutSec = doc["sleepTimeout"]  | (uint16_t)DEFAULT_SLEEP_SEC;
     g_state.fontIndex       = doc["fontIndex"]     | (uint8_t)DEFAULT_FONT_INDEX;
     if (g_state.fontIndex >= 4) g_state.fontIndex = DEFAULT_FONT_INDEX;
