@@ -29,6 +29,9 @@ struct SwitchStates {
     bool bot;
 };
 
+// Причина завершения дозирования (для сообщения на экране «Готово»).
+enum class DoneReason : uint8_t { TIMER, BOT, ABORT };
+
 enum class Screen : uint8_t {
     IDLE,        // стартовое состояние: ничего не делаем, ждём команды пользователя
     PARKING,
@@ -74,6 +77,7 @@ struct AppState {
     // отладочной индикации в UI, независимо от экрана/стадии.
     SwitchStates  rawSwitches = {false, false, false, false};
     DosingProgress dosing     = {0, 0, 0, 0, 0};
+    DoneReason     doneReason = DoneReason::TIMER;   // чем закончилось дозирование
 
     // ── UI state ───────────────────────────────────────────────────────────
     bool     displaySleeping     = false;

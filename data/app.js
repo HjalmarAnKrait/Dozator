@@ -208,12 +208,18 @@ function renderDone(s) {
   $('pf-fact-t').textContent = Math.round(d.elapsedSec || 0);
   const pct = Math.round((d.progress || 0) * 100);
   $('pf-pct').textContent = pct + '%';
-  const early = (d.progress || 0) < 0.999;
+  const reason = d.reason || 'timer';
   const note = $('pf-note');
-  note.textContent = early
-    ? '⚠ Концевик BOT сработал раньше времени — выдавлено меньше плана'
-    : '✓ Выдавлен полный плановый объём';
-  note.classList.toggle('warn', early);
+  if (reason === 'bot') {
+    note.textContent = '⚠ Концевик BOT сработал раньше — выдавлено меньше плана';
+    note.classList.add('warn');
+  } else if (reason === 'abort') {
+    note.textContent = '■ Остановлено вручную (СТОП) — выдавлено меньше плана';
+    note.classList.add('warn');
+  } else {
+    note.textContent = '✓ Выдавлен полный плановый объём';
+    note.classList.remove('warn');
+  }
 }
 
 function renderSettings(s) {

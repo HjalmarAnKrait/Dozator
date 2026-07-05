@@ -113,6 +113,7 @@ void WsProtocol::handleCommand(const char* action) {
     else if (strcmp(action, "pusk") == 0 && g_state.screen == Screen::CHARGED) {
         m_sm->transitionTo(Screen::DOSING);
     } else if (strcmp(action, "abort") == 0 && g_state.screen == Screen::DOSING) {
+        g_state.doneReason = DoneReason::ABORT;
         m_sm->transitionTo(Screen::DONE);
     } else if (strcmp(action, "new_cycle") == 0 && g_state.screen == Screen::DONE) {
         m_sm->transitionTo(Screen::IDLE);   // без автопарковки — ждём команду «Парковка»
@@ -195,6 +196,8 @@ size_t WsProtocol::buildStateJson(char* buf, size_t bufLen) {
     dos["progress"]   = g_state.dosing.progress;
     dos["volumeA"]    = g_state.dosing.volumeA;
     dos["volumeB"]    = g_state.dosing.volumeB;
+    dos["reason"]     = (g_state.doneReason == DoneReason::BOT)   ? "bot"
+                      : (g_state.doneReason == DoneReason::ABORT) ? "abort" : "timer";
 
     JsonObject ui = doc["ui"].to<JsonObject>();
     ui["displaySleeping"]  = g_state.displaySleeping;

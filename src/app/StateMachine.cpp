@@ -76,7 +76,6 @@ void StateMachine::transitionTo(Screen next) {
         }
 
         case Screen::DONE:
-            g_state.switches.bot = true;
             if (m_stepper) m_stepper->stop();
             break;
 
@@ -137,7 +136,11 @@ void StateMachine::tick(uint32_t nowMs) {
             g_state.dosing.progress = (total > 0) ? (byTimer ? 1.0f : simElapsed / total) : 0.0f;
             g_state.dosing.volumeA  = calc::volA() * g_state.dosing.progress;
             g_state.dosing.volumeB  = calc::volB() * g_state.dosing.progress;
-            if (done) { transitionTo(Screen::DONE); return; }
+            if (done) {
+                g_state.doneReason = byTimer ? DoneReason::TIMER : DoneReason::BOT;
+                transitionTo(Screen::DONE);
+                return;
+            }
             requestBroadcast();
             break;
         }

@@ -31,6 +31,7 @@ const T_CHARGE_B = 1700;    // мс до B (A + 800)
 // ── Мок-состояние (зеркало AppState) ───────────────────────────────────────
 const state = {
   screen: 'IDLE',
+  doneReason: 'timer',
   screwPitch: 2.0,
   sleepTimeout: 15,
   parkSpeed: 800,
@@ -97,7 +98,7 @@ function buildState() {
     },
     switches: state.switches,
     rawSwitches: state.rawSwitches,
-    dosing: state.dosing,
+    dosing: { ...state.dosing, reason: state.doneReason },
   };
 }
 
@@ -124,7 +125,7 @@ function transitionTo(next) {
       dosingStartMs = Date.now();
       break;
     case 'DONE':
-      state.switches.bot = true;
+      state.switches.bot = (state.doneReason === 'bot');   // bot true только если реально сработал
       break;
     case 'PARKING':
       state.switches = { top: false, a: false, b: false, bot: false };
@@ -159,8 +160,8 @@ function tick() {
       changed = true;
       // ДЕМО: имитируем срабатывание концевика BOT раньше таймера (на 85%),
       // чтобы показать план/факт. progress НЕ форсим в 1 — фиксируем факт.
-      if (state.dosing.progress >= 0.85) { state.rawSwitches.bot = true; transitionTo('DONE'); return; }
-      if (simElapsed >= state.dosing.totalSec) { state.dosing.progress = 1; state.rawSwitches.bot = true; transitionTo('DONE'); return; }
+      if (state.dosing.progress >= 0.85) { state.doneReason = 'bot'; transitionTo('DONE'); return; }
+      if (simElapsed >= state.dosing.totalSec) { state.dosing.progress = 1; state.doneReason = 'timer'; transitionTo('DONE'); return; }
       break;
     }
   }
@@ -182,7 +183,7 @@ function handleCommand(action) {
   if (action === 'park' && (state.screen === 'IDLE' || state.screen === 'DONE')) transitionTo('PARKING');
   else if (action === 'start_charging' && state.screen === 'PARKED') transitionTo('CHARGING');
   else if (action === 'pusk' && state.screen === 'CHARGED') transitionTo('DOSING');
-  else if (action === 'abort' && state.screen === 'DOSING') transitionTo('DONE');
+  else if (action === 'abort' && state.screen === 'DOSING') { state.doneReason = 'abort'; transitionTo('DONE'); }
   else if (action === 'new_cycle' && state.screen === 'DONE') transitionTo('IDLE');
 }
 
