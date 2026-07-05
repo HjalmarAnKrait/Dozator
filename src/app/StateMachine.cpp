@@ -82,16 +82,23 @@ void StateMachine::transitionTo(Screen next) {
             if (m_stepper) m_stepper->stop();
             break;
 
-        case Screen::PARKING:
+        case Screen::PARKING: {
             g_state.switches = {false, false, false, false};
+            // Если концевик TOP уже прижат — мы уже дома: не двигаемся, tick() сразу
+            // уведёт в PARKED. Иначе едем к TOP большим ходом (tick() остановит по SW_TOP).
+            SwitchSnapshot sw = m_switches ? m_switches->read()
+                                           : SwitchSnapshot{false, false, false, false};
             if (m_stepper) {
-                m_stepper->enable();
-                // Хоуминг: едем в сторону концевика TOP большим ходом (~31 об при 3200/об);
-                // tick() остановит и обнулит позицию по срабатыванию SW_TOP.
-                // Если едет НЕ в ту сторону — поменяй "-" на "+" ниже.
-                m_stepper->moveTo(m_stepper->currentPosition() - 100000, g_state.parkSpeed);
+                if (sw.top) {
+                    m_stepper->stop();
+                } else {
+                    m_stepper->enable();
+                    // Если едет НЕ в ту сторону — поменяй "-" на "+" ниже.
+                    m_stepper->moveTo(m_stepper->currentPosition() - 100000, g_state.parkSpeed);
+                }
             }
             break;
+        }
 
         default:
             break;
