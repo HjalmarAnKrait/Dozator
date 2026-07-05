@@ -228,7 +228,7 @@ select {
   font-size: 40px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: var(--primary);
+  color: var(--text);
   margin: 2px 0 14px;
 }
 
