@@ -84,6 +84,7 @@ const fmtRange = (r) => `${fmt(Math.ceil(r.min * 100) / 100)}–${fmt(Math.floor
 const STAGE_RU = {
   IDLE:        'Простой',
   CALIBRATING: 'Калибровка',
+  STOPPED:     'Остановлено',
   PARKING:  'Парковка',
   PARKED:   'Готов',
   CHARGING: 'Зарядка',
@@ -91,7 +92,7 @@ const STAGE_RU = {
   DOSING:   'Дозирование',
   DONE:     'Готово',
 };
-const KNOWN = ['IDLE', 'CALIBRATING', 'PARKING', 'PARKED', 'CHARGING', 'CHARGED', 'DOSING', 'DONE'];
+const KNOWN = ['IDLE', 'CALIBRATING', 'STOPPED', 'PARKING', 'PARKED', 'CHARGING', 'CHARGED', 'DOSING', 'DONE'];
 
 // ─── Render ─────────────────────────────────────────────────────────────────
 function render(s) {
@@ -101,6 +102,13 @@ function render(s) {
   // 2) Стадия
   const screen = s.screen || '';
   $('stage-tag').textContent = STAGE_RU[screen] || screen || '—';
+
+  // Двухфазная кнопка сброса: обычно «СТОП»; после остановки — «Парковка».
+  const rb = $('btn-reset');
+  if (rb) {
+    if (screen === 'STOPPED') { rb.textContent = '⌂ Парковка'; rb.dataset.cmd = 'park'; }
+    else { rb.textContent = '■ СТОП'; rb.dataset.cmd = 'stop'; }
+  }
 
   const target = KNOWN.includes(screen) ? screen : 'OTHER';
   document.querySelectorAll('.screen').forEach((el) => {

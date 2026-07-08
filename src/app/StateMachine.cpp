@@ -106,6 +106,12 @@ void StateMachine::transitionTo(Screen next) {
             if (m_stepper) m_stepper->stop();
             break;
 
+        case Screen::STOPPED:
+            // Аварийный стоп: мотор немедленно остановлен, держим позицию, ждём команды.
+            g_state.switches = {false, false, false, false};
+            if (m_stepper) m_stepper->stop();
+            break;
+
         case Screen::PARKING: {
             g_state.switches = {false, false, false, false};
             // Если концевик TOP уже прижат — мы уже дома: не двигаемся, tick() сразу

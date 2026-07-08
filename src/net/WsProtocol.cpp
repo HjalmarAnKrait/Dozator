@@ -99,14 +99,20 @@ void WsProtocol::handleSetPreset(int index, float vol, float diam) {
 
 void WsProtocol::handleCommand(const char* action) {
     if (!m_sm) return;
-    // Сброс: из ЛЮБОГО состояния — остановиться и уехать на парковку (хоуминг).
+    // Фаза 1 сброса: из ЛЮБОГО состояния — немедленный СТОП (мотор стоит, держит позицию).
+    if (strcmp(action, "stop") == 0) {
+        m_sm->transitionTo(Screen::STOPPED);
+        return;
+    }
+    // Сброс одной командой (стоп + парковка) — оставлено для совместимости.
     if (strcmp(action, "reset") == 0) {
         m_sm->transitionTo(Screen::PARKING);
         return;
     }
-    // Парковка запускается только по команде пользователя (из простоя/после цикла).
+    // Парковка — по команде пользователя (из простоя / после цикла / после СТОП).
     if      (strcmp(action, "park") == 0 &&
-             (g_state.screen == Screen::IDLE || g_state.screen == Screen::DONE))
+             (g_state.screen == Screen::IDLE || g_state.screen == Screen::DONE ||
+              g_state.screen == Screen::STOPPED))
         m_sm->transitionTo(Screen::PARKING);
     else if (strcmp(action, "calibrate") == 0 &&
              (g_state.screen == Screen::IDLE || g_state.screen == Screen::DONE ||
@@ -135,6 +141,7 @@ static const char* screenName(Screen s) {
         case Screen::DOSING:               return "DOSING";
         case Screen::DONE:                 return "DONE";
         case Screen::CALIBRATING:          return "CALIBRATING";
+        case Screen::STOPPED:              return "STOPPED";
         case Screen::SERVICE_MENU:         return "SERVICE_MENU";
         case Screen::SERVICE_PITCH:        return "SERVICE_PITCH";
         case Screen::SERVICE_SLEEP:        return "SERVICE_SLEEP";

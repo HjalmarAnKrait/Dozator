@@ -41,6 +41,7 @@ enum class Screen : uint8_t {
     DOSING,
     DONE,
     CALIBRATING,   // калибровка полного хода H (дом → конец)
+    STOPPED,       // аварийный стоп: мотор остановлен, ждём команды (парковка)
     SERVICE_MENU,
     SERVICE_PITCH,
     SERVICE_SLEEP,

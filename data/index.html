@@ -24,8 +24,8 @@
       <div class="sw" data-sw="b"><span class="led" id="led-b"></span><b>B</b></div>
       <div class="sw" data-sw="bot"><span class="led" id="led-bot"></span><b>BOT</b></div>
     </div>
-    <!-- Глобальный сброс — стоп и парковка из любого состояния -->
-    <button class="btn-reset" data-cmd="reset">⟲ Сброс / Парковка</button>
+    <!-- Глобальный сброс, двухфазный: 1-е нажатие — СТОП, 2-е — Парковка -->
+    <button class="btn-reset" id="btn-reset" data-cmd="stop">■ СТОП</button>
   </header>
 
   <main id="main">
@@ -40,6 +40,14 @@
       </div>
       <button class="btn btn-primary btn-xl" data-cmd="park">⌂ Парковка</button>
       <button class="btn btn-ghost btn-xl" data-cmd="calibrate">⚙ Калибровка хода</button>
+    </section>
+
+    <!-- ── STOPPED: аварийный стоп ──────────────────────────────────────── -->
+    <section class="card screen" data-screen="STOPPED" hidden>
+      <div class="big-status">
+        <h2>Остановлено</h2>
+        <p>Мотор остановлен. Нажми «Парковка» (кнопка вверху) для возврата домой.</p>
+      </div>
     </section>
 
     <!-- ── CALIBRATING: замер полного хода дом→конец ────────────────────── -->

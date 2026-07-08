@@ -114,6 +114,7 @@ function transitionTo(next) {
   switch (next) {
     case 'IDLE':
     case 'CALIBRATING':
+    case 'STOPPED':
       state.switches = { top: false, a: false, b: false, bot: false };
       break;
     case 'PARKED':
@@ -188,9 +189,10 @@ function handleMessage(msg) {
 }
 
 function handleCommand(action) {
-  if (action === 'reset') return transitionTo('PARKING');   // стоп + парковка из любого состояния
+  if (action === 'stop') return transitionTo('STOPPED');     // фаза 1: немедленный стоп
+  if (action === 'reset') return transitionTo('PARKING');
   if (action === 'calibrate' && ['IDLE', 'DONE', 'PARKED'].includes(state.screen)) return transitionTo('CALIBRATING');
-  if (action === 'park' && (state.screen === 'IDLE' || state.screen === 'DONE')) transitionTo('PARKING');
+  if (action === 'park' && ['IDLE', 'DONE', 'STOPPED'].includes(state.screen)) transitionTo('PARKING');
   else if (action === 'start_charging' && state.screen === 'PARKED') transitionTo('CHARGING');
   else if (action === 'pusk' && state.screen === 'CHARGED' && state.fullPathSteps > 0) transitionTo('DOSING');
   else if (action === 'abort' && state.screen === 'DOSING') { state.doneReason = 'abort'; transitionTo('DONE'); }
