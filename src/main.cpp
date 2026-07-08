@@ -15,6 +15,7 @@
 #include "net/CaptivePortal.h"
 #include "net/WebServer.h"
 #include "util/Logger.h"
+#include "util/Debounce.h"
 #include "config.h"
 #include "version.h"
 
@@ -45,9 +46,12 @@ void setup() {
     g_stepper  = new SimulatedStepper();
     g_switches = new SimulatedSwitches();
 #else
-    g_stepper  = new RealStepper();   // STEP=D5, DIR=D0, EN=D3 (см. config.h)
+    g_stepper  = new RealStepper();   // STEP=D5, DIR=D0 (EN на GND)
     g_switches = new RealSwitches();  // концевиков 4: D1/D2/D6/D7, INPUT_PULLUP
 #endif
+
+    // Физическая кнопка СТОП/Сброс (D3/GPIO0, INPUT_PULLUP, на GND).
+    pinMode(BTN_STOP_PIN, INPUT_PULLUP);
 
     // 3. State machine
     g_sm.begin(g_stepper, g_switches, &g_settings);
@@ -69,6 +73,12 @@ void loop() {
 
     // DNS / Captive portal
     g_captive.tick();
+
+    // Физическая кнопка СТОП/Сброс (active-LOW) с дебаунсом — по фронту нажатия.
+    static Debounce btnStop;
+    if (btnStop.update(digitalRead(BTN_STOP_PIN) == LOW, now) && btnStop.stable()) {
+        g_sm.stopButtonPress();
+    }
 
     // Hardware ticks (читает концевики с дебаунсом, гонит шаги в ISR)
     if (g_switches) g_switches->tick(now);

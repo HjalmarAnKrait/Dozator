@@ -21,6 +21,23 @@ bool StateMachine::sleepAllowed(Screen s) {
     }
 }
 
+bool StateMachine::moveStuck(uint32_t nowMs) {
+    // Сбой хода к концевику: слишком долго ИЛИ мотор доехал до программного предела.
+    if (nowMs - m_moveStartMs > STUCK_TIMEOUT_MS) return true;
+    if (m_stepper && !m_stepper->isBusy())        return true;
+    return false;
+}
+
+// Двухфазная кнопка (физическая D3 и глоб. кнопка UI): СТОП → (после стопа) Парковка.
+void StateMachine::stopButtonPress() {
+    if (g_state.screen == Screen::STOPPED) {
+        transitionTo(Screen::PARKING);
+    } else {
+        g_state.stopCause = StopCause::MANUAL;
+        transitionTo(Screen::STOPPED);
+    }
+}
+
 void StateMachine::begin(IStepperDriver* stepper, ILimitSwitches* switches, Settings* settings) {
     m_stepper  = stepper;
     m_switches = switches;
@@ -34,6 +51,7 @@ void StateMachine::transitionTo(Screen next) {
     g_state.editing          = false;
     g_state.displaySleeping  = false;
     g_state.lastInteractionMs = millis();
+    m_moveStartMs            = millis();   // старт отсчёта для сторожа застревания
 
     switch (next) {
         case Screen::IDLE:
@@ -156,12 +174,22 @@ void StateMachine::tick(uint32_t nowMs) {
                 transitionTo(Screen::PARKED);
                 return;
             }
+            if (moveStuck(nowMs)) {   // TOP не найден → сбой
+                g_state.stopCause = StopCause::STUCK_HOME;
+                transitionTo(Screen::STOPPED);
+                return;
+            }
             break;
 
         case Screen::CHARGING:
             g_state.switches.a = sw.a;
             g_state.switches.b = sw.b;
             if (sw.a && sw.b) { transitionTo(Screen::CHARGED); return; }
+            if (moveStuck(nowMs)) {   // оба концевика A/B не прижались → сбой
+                g_state.stopCause = StopCause::STUCK_CHARGE;
+                transitionTo(Screen::STOPPED);
+                return;
+            }
             break;
 
         case Screen::DOSING: {
@@ -204,16 +232,30 @@ void StateMachine::tick(uint32_t nowMs) {
                         m_stepper->moveTo(m_stepper->currentPosition() + 5000000, g_state.parkSpeed);
                     }
                     m_calibPhase = 1;
+                    m_moveStartMs = nowMs;           // сброс таймера сторожа на фазу 1
                     requestBroadcast();
+                } else if (moveStuck(nowMs)) {
+                    g_state.stopCause = StopCause::STUCK_HOME;
+                    transitionTo(Screen::STOPPED);
+                    return;
                 }
-            } else {                                 // фаза 1: спуск к концу (BOT), A/B игнорим
+            } else {                                 // фаза 1: спуск к концу (BOT)
                 if (sw.bot) {
                     int32_t H = m_stepper ? m_stepper->currentPosition() : 0;
                     if (m_stepper) m_stepper->stop();
+                    if (H < MIN_CALIB_STEPS) {       // подозрительно малый ход → брак калибровки
+                        g_state.stopCause = StopCause::CALIB_FAIL;
+                        transitionTo(Screen::STOPPED);
+                        return;
+                    }
                     g_state.fullPathSteps = H;
                     if (m_settings) m_settings->markDirty();
                     LOG_INFO("Calibrated: H=%d steps", (int)H);
                     transitionTo(Screen::IDLE);
+                    return;
+                } else if (moveStuck(nowMs)) {
+                    g_state.stopCause = StopCause::STUCK_END;
+                    transitionTo(Screen::STOPPED);
                     return;
                 }
             }

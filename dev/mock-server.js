@@ -102,6 +102,7 @@ function buildState() {
     },
     switches: state.switches,
     rawSwitches: state.rawSwitches,
+    ui: { stopCause: 'manual' },
     dosing: { ...state.dosing, reason: state.doneReason },
   };
 }

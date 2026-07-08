@@ -119,6 +119,7 @@ function render(s) {
   // 3) Содержимое активного экрана
   switch (screen) {
     case 'IDLE':    renderIdle(s);    break;
+    case 'STOPPED': renderStopped(s); break;
     case 'PARKED':  renderParked(s);  break;
     case 'CHARGED': renderCharged(s); break;
     case 'DOSING':  renderDosing(s);  break;
@@ -159,6 +160,19 @@ function renderIdle(s) {
   if (el) el.textContent = H > 0
     ? `Калибровка: OK (полный ход H = ${H} шаг)`
     : '⚠ Не откалибровано — нажми «Калибровка хода»';
+}
+
+function renderStopped(s) {
+  const cause = s.ui?.stopCause || 'manual';
+  const map = {
+    manual:       'Мотор остановлен. Нажми «Парковка» (кнопка вверху) для возврата домой.',
+    stuck_home:   '⚠ Сбой: не найден концевик TOP (дом). Проверь концевик и направление, затем «Парковка».',
+    stuck_charge: '⚠ Сбой: концевики A/B не прижались при зарядке. Проверь механику, затем «Парковка».',
+    stuck_end:    '⚠ Сбой: не найден концевик BOT (конец) при калибровке. Проверь концевик, затем «Парковка».',
+    calib_fail:   '⚠ Калибровка не удалась (ход слишком мал). Проверь концевики и повтори калибровку.',
+  };
+  const el = $('stopped-msg');
+  if (el) el.textContent = map[cause] || map.manual;
 }
 
 function renderParked(s) {
@@ -281,7 +295,12 @@ function fmt(v) {
 // Команды (кнопки)
 document.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-cmd]');
-  if (btn) send({ type: 'command', action: btn.dataset.cmd });
+  if (!btn || btn.disabled) return;
+  const cmd = btn.dataset.cmd;
+  if (cmd === 'calibrate' &&
+      !confirm('Калибровка прогонит каретку на весь ход (дом → конец).\n' +
+               'Снимите шприцы и убедитесь, что ход свободен.\n\nПродолжить?')) return;
+  send({ type: 'command', action: cmd });
 });
 
 // Числовое поле с валидацией: на input — пересчёт сразу (если валидно),

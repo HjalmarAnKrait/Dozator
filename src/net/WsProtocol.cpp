@@ -101,6 +101,7 @@ void WsProtocol::handleCommand(const char* action) {
     if (!m_sm) return;
     // Фаза 1 сброса: из ЛЮБОГО состояния — немедленный СТОП (мотор стоит, держит позицию).
     if (strcmp(action, "stop") == 0) {
+        g_state.stopCause = StopCause::MANUAL;
         m_sm->transitionTo(Screen::STOPPED);
         return;
     }
@@ -218,6 +219,13 @@ size_t WsProtocol::buildStateJson(char* buf, size_t bufLen) {
     JsonObject ui = doc["ui"].to<JsonObject>();
     ui["displaySleeping"]  = g_state.displaySleeping;
     ui["editingPresetIdx"] = g_state.editingPresetIdx;
+    switch (g_state.stopCause) {   // причина STOPPED (для сообщения в UI)
+        case StopCause::STUCK_HOME:   ui["stopCause"] = "stuck_home";   break;
+        case StopCause::STUCK_CHARGE: ui["stopCause"] = "stuck_charge"; break;
+        case StopCause::STUCK_END:    ui["stopCause"] = "stuck_end";    break;
+        case StopCause::CALIB_FAIL:   ui["stopCause"] = "calib_fail";   break;
+        default:                      ui["stopCause"] = "manual";       break;
+    }
 
     JsonArray bc = ui["breadcrumb"].to<JsonArray>();
     for (int i = 0; i < g_state.breadcrumbDepth; i++)

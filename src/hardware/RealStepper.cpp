@@ -58,8 +58,8 @@ RealStepper::RealStepper() {
     digitalWrite(STEP_STEP_PIN, LOW);
     pinMode(STEP_DIR_PIN, OUTPUT);
     digitalWrite(STEP_DIR_PIN, LOW);
-    pinMode(STEP_EN_PIN, OUTPUT);
-    digitalWrite(STEP_EN_PIN, HIGH);   // EN active-LOW → HIGH = выключен
+    // EN не трогаем: он посажен на GND (драйвер всегда включён), а пин D3/GPIO0
+    // освобождён под физическую кнопку СТОП. enable()/disable() — no-op.
 
     timer1_isr_init();
     timer1_attachInterrupt(stepISR);
@@ -124,11 +124,11 @@ void RealStepper::zero() {
 }
 
 void RealStepper::enable() {
-    digitalWrite(STEP_EN_PIN, LOW);    // active-LOW
+    // no-op: EN на GND (драйвер всегда включён).
 }
 
 void RealStepper::disable() {
-    digitalWrite(STEP_EN_PIN, HIGH);
+    // no-op: EN на GND.
 }
 
 void RealStepper::tick(uint32_t nowMs) {

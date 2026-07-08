@@ -32,6 +32,9 @@ struct SwitchStates {
 // Причина завершения дозирования (для сообщения на экране «Готово»).
 enum class DoneReason : uint8_t { TIMER, BOT, ABORT };
 
+// Причина перехода в STOPPED (ручной стоп или сбой-сторож).
+enum class StopCause : uint8_t { MANUAL, STUCK_HOME, STUCK_CHARGE, STUCK_END, CALIB_FAIL };
+
 enum class Screen : uint8_t {
     IDLE,        // стартовое состояние: ничего не делаем, ждём команды пользователя
     PARKING,
@@ -81,6 +84,7 @@ struct AppState {
     SwitchStates  rawSwitches = {false, false, false, false};
     DosingProgress dosing     = {0, 0, 0, 0, 0};
     DoneReason     doneReason = DoneReason::TIMER;   // чем закончилось дозирование
+    StopCause      stopCause  = StopCause::MANUAL;   // причина STOPPED
     float          planVolA   = 0.0f;   // плановый объём дозы (по расстоянию L2), мл
     float          planVolB   = 0.0f;
 
