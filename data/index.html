@@ -36,9 +36,19 @@
     <section class="card screen" data-screen="IDLE" hidden>
       <div class="big-status">
         <h2>Простой</h2>
-        <p>Устройство готово. Нажми «Парковка», чтобы начать цикл.</p>
+        <p id="calib-status">Калибровка: —</p>
       </div>
       <button class="btn btn-primary btn-xl" data-cmd="park">⌂ Парковка</button>
+      <button class="btn btn-ghost btn-xl" data-cmd="calibrate">⚙ Калибровка хода</button>
+    </section>
+
+    <!-- ── CALIBRATING: замер полного хода дом→конец ────────────────────── -->
+    <section class="card screen" data-screen="CALIBRATING" hidden>
+      <div class="big-status">
+        <div class="spinner"></div>
+        <h2>Калибровка</h2>
+        <p>Измеряю полный ход: дом → конец…</p>
+      </div>
     </section>
 
     <!-- ── PARKING ──────────────────────────────────────────────────────── -->

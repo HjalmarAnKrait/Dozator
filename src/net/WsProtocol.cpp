@@ -108,9 +108,14 @@ void WsProtocol::handleCommand(const char* action) {
     if      (strcmp(action, "park") == 0 &&
              (g_state.screen == Screen::IDLE || g_state.screen == Screen::DONE))
         m_sm->transitionTo(Screen::PARKING);
+    else if (strcmp(action, "calibrate") == 0 &&
+             (g_state.screen == Screen::IDLE || g_state.screen == Screen::DONE ||
+              g_state.screen == Screen::PARKED))
+        m_sm->transitionTo(Screen::CALIBRATING);
     else if (strcmp(action, "start_charging") == 0 && g_state.screen == Screen::PARKED)
         m_sm->transitionTo(Screen::CHARGING);
-    else if (strcmp(action, "pusk") == 0 && g_state.screen == Screen::CHARGED) {
+    else if (strcmp(action, "pusk") == 0 && g_state.screen == Screen::CHARGED
+             && g_state.fullPathSteps > 0) {   // ПУСК только если откалибровано (H задан)
         m_sm->transitionTo(Screen::DOSING);
     } else if (strcmp(action, "abort") == 0 && g_state.screen == Screen::DOSING) {
         g_state.doneReason = DoneReason::ABORT;
@@ -129,6 +134,7 @@ static const char* screenName(Screen s) {
         case Screen::CHARGED:              return "CHARGED";
         case Screen::DOSING:               return "DOSING";
         case Screen::DONE:                 return "DONE";
+        case Screen::CALIBRATING:          return "CALIBRATING";
         case Screen::SERVICE_MENU:         return "SERVICE_MENU";
         case Screen::SERVICE_PITCH:        return "SERVICE_PITCH";
         case Screen::SERVICE_SLEEP:        return "SERVICE_SLEEP";
@@ -150,6 +156,7 @@ size_t WsProtocol::buildStateJson(char* buf, size_t bufLen) {
     settings["sleepTimeout"] = g_state.sleepTimeoutSec;
     settings["parkSpeed"]    = g_state.parkSpeed;
     settings["chargeSpeed"]  = g_state.chargeSpeed;
+    settings["fullPathSteps"] = g_state.fullPathSteps;   // H (0 = не калибровано)
     JsonArray presets = settings["presets"].to<JsonArray>();
     for (int i = 0; i < g_state.presetsCount; i++) {
         JsonObject p = presets.add<JsonObject>();
@@ -171,6 +178,8 @@ size_t WsProtocol::buildStateJson(char* buf, size_t bufLen) {
     cycle["doseTimeMin"] = g_state.doseTimeMin;
     cycle["flowA"]       = calc::flowA();
     cycle["flowB"]       = calc::flowB();
+    cycle["planVolA"]    = g_state.planVolA;   // плановый объём дозы (по расстоянию L2)
+    cycle["planVolB"]    = g_state.planVolB;
     // Физически допустимый диапазон времени дозирования (мин) под текущие
     // объём/диаметр/шаг — пределы потока и оборотов мотора.
     calc::TimeRange tr   = calc::timeRangeMin();

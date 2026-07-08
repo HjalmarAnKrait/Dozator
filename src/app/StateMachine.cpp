@@ -14,6 +14,7 @@ bool StateMachine::sleepAllowed(Screen s) {
         case Screen::PARKING:
         case Screen::CHARGING:
         case Screen::DOSING:
+        case Screen::CALIBRATING:
             return false;
         default:
             return true;
@@ -65,18 +66,41 @@ void StateMachine::transitionTo(Screen next) {
         case Screen::DOSING: {
             g_state.dosing = {0, g_state.doseTimeMin * 60.0f, 0, 0, 0};
             m_dosingStartMs = millis();
-            if (m_stepper) {
-                float rpm   = calc::motorRpm();
-                float speed = max(1.0f, rpm * FULL_STEPS_PER_REV / 60.0f);
-                // Полное число микрошагов, чтобы выдавить весь объём за totalSec.
-                m_dosingTargetSteps = (int32_t)(g_state.dosing.totalSec * speed);
-                if (m_dosingTargetSteps < 1) m_dosingTargetSteps = 1;
-                m_stepper->zero();                              // отсчёт дозы от 0
+            // Дистанционная модель: доза = остаток L2 = H − L (заряд→конец) за время t.
+            int32_t L  = m_stepper ? m_stepper->currentPosition() : 0;  // позиция заряда (2)
+            int32_t H  = g_state.fullPathSteps;                         // полный ход (калибровка)
+            int32_t L2 = H - L;
+            m_dosingStartPos    = L;
+            m_dosingTargetSteps = L2;
+            // Плановый объём дозы по расстоянию L2 (только для отображения).
+            float l2mm = L2 * (g_state.screwPitch / (float)FULL_STEPS_PER_REV);
+            g_state.planVolA = calc::distToVolumeMl(g_state.syringeA.diameter, l2mm);
+            g_state.planVolB = calc::distToVolumeMl(g_state.syringeB.diameter, l2mm);
+            if (m_stepper && L2 > 0) {
+                float t = max(1.0f, g_state.dosing.totalSec);
+                float speed = constrain((float)L2 / t, 1.0f, 15000.0f);   // V = L2 / t
                 m_stepper->enable();
-                m_stepper->moveTo(m_dosingTargetSteps, speed);  // +N шагов от текущей позиции
+                m_stepper->moveTo(H, speed);                              // едем в позицию 3
             }
             break;
         }
+
+        case Screen::CALIBRATING:
+            g_state.switches = {false, false, false, false};
+            m_calibPhase = 0;
+            if (m_stepper) {
+                SwitchSnapshot csw = m_switches ? m_switches->read()
+                                                : SwitchSnapshot{false, false, false, false};
+                m_stepper->enable();
+                if (csw.top) {                 // уже дома → сразу спуск к концу (фаза 1)
+                    m_stepper->zero();
+                    m_calibPhase = 1;
+                    m_stepper->moveTo(m_stepper->currentPosition() + 5000000, g_state.parkSpeed);
+                } else {                       // сначала к дому (TOP)
+                    m_stepper->moveTo(m_stepper->currentPosition() - 5000000, g_state.parkSpeed);
+                }
+            }
+            break;
 
         case Screen::DONE:
             if (m_stepper) m_stepper->stop();
@@ -140,28 +164,54 @@ void StateMachine::tick(uint32_t nowMs) {
             float elapsed = (nowMs >= m_dosingStartMs) ? (nowMs - m_dosingStartMs) / 1000.0f : 0.0f;
             g_state.dosing.elapsedSec = min(elapsed, total);
 
-            // Прогресс и выдавленный объём — по ФАКТИЧЕСКИМ шагам мотора (не по времени).
+            // Прогресс — по фактически пройденному расстоянию (шагам) от заряда (2) к концу (3).
             int32_t pos = m_stepper ? m_stepper->currentPosition() : 0;
-            int32_t tgt = (m_dosingTargetSteps > 0) ? m_dosingTargetSteps : 1;
-            float progress = constrain((float)pos / (float)tgt, 0.0f, 1.0f);
+            int32_t traveled = pos - m_dosingStartPos;
+            int32_t L2 = (m_dosingTargetSteps > 0) ? m_dosingTargetSteps : 1;
+            float progress = constrain((float)traveled / (float)L2, 0.0f, 1.0f);
 
-            bool byBot  = sw.bot;                                      // концевик раньше времени
-            bool byDone = (pos >= tgt) || (m_stepper && !m_stepper->isBusy());  // мотор отработал все шаги
+            bool byBot  = sw.bot;                                              // конец (3) раньше времени
+            bool byDone = (traveled >= L2) || (m_stepper && !m_stepper->isBusy());
             if (byBot || byDone) {
                 if (!byBot) progress = 1.0f;
                 g_state.doneReason = byBot ? DoneReason::BOT : DoneReason::TIMER;
                 g_state.dosing.progress = progress;
-                g_state.dosing.volumeA  = calc::volA() * progress;
-                g_state.dosing.volumeB  = calc::volB() * progress;
+                g_state.dosing.volumeA  = g_state.planVolA * progress;
+                g_state.dosing.volumeB  = g_state.planVolB * progress;
                 transitionTo(Screen::DONE);
                 return;
             }
             g_state.dosing.progress = progress;
-            g_state.dosing.volumeA  = calc::volA() * progress;
-            g_state.dosing.volumeB  = calc::volB() * progress;
+            g_state.dosing.volumeA  = g_state.planVolA * progress;
+            g_state.dosing.volumeB  = g_state.planVolB * progress;
             requestBroadcast();
             break;
         }
+
+        case Screen::CALIBRATING:
+            if (m_calibPhase == 0) {                 // фаза 0: хоуминг к дому (TOP)
+                if (sw.top) {
+                    if (m_stepper) {
+                        m_stepper->stop();
+                        m_stepper->zero();
+                        m_stepper->enable();
+                        m_stepper->moveTo(m_stepper->currentPosition() + 5000000, g_state.parkSpeed);
+                    }
+                    m_calibPhase = 1;
+                    requestBroadcast();
+                }
+            } else {                                 // фаза 1: спуск к концу (BOT), A/B игнорим
+                if (sw.bot) {
+                    int32_t H = m_stepper ? m_stepper->currentPosition() : 0;
+                    if (m_stepper) m_stepper->stop();
+                    g_state.fullPathSteps = H;
+                    if (m_settings) m_settings->markDirty();
+                    LOG_INFO("Calibrated: H=%d steps", (int)H);
+                    transitionTo(Screen::IDLE);
+                    return;
+                }
+            }
+            break;
 
         default:
             break;

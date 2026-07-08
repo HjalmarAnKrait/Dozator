@@ -82,7 +82,8 @@ function getRange(field) {
 const fmtRange = (r) => `${fmt(Math.ceil(r.min * 100) / 100)}–${fmt(Math.floor(r.max * 100) / 100)}`;
 
 const STAGE_RU = {
-  IDLE:     'Простой',
+  IDLE:        'Простой',
+  CALIBRATING: 'Калибровка',
   PARKING:  'Парковка',
   PARKED:   'Готов',
   CHARGING: 'Зарядка',
@@ -90,7 +91,7 @@ const STAGE_RU = {
   DOSING:   'Дозирование',
   DONE:     'Готово',
 };
-const KNOWN = ['IDLE', 'PARKING', 'PARKED', 'CHARGING', 'CHARGED', 'DOSING', 'DONE'];
+const KNOWN = ['IDLE', 'CALIBRATING', 'PARKING', 'PARKED', 'CHARGING', 'CHARGED', 'DOSING', 'DONE'];
 
 // ─── Render ─────────────────────────────────────────────────────────────────
 function render(s) {
@@ -109,6 +110,7 @@ function render(s) {
 
   // 3) Содержимое активного экрана
   switch (screen) {
+    case 'IDLE':    renderIdle(s);    break;
     case 'PARKED':  renderParked(s);  break;
     case 'CHARGED': renderCharged(s); break;
     case 'DOSING':  renderDosing(s);  break;
@@ -143,6 +145,14 @@ function fillPresetSelect(sel, presets, chosenIdx) {
   if (document.activeElement !== sel) sel.value = chosenIdx;
 }
 
+function renderIdle(s) {
+  const H = s.settings?.fullPathSteps || 0;
+  const el = $('calib-status');
+  if (el) el.textContent = H > 0
+    ? `Калибровка: OK (полный ход H = ${H} шаг)`
+    : '⚠ Не откалибровано — нажми «Калибровка хода»';
+}
+
 function renderParked(s) {
   const presets = s.settings?.presets || [];
   const a = s.cycle?.syringeA || {};
@@ -162,6 +172,14 @@ function renderCharged(s) {
   $('dose-time-label').textContent = (c.timeMax > 0)
     ? `Время дозирования, мин (${fmtRange({ min: Math.max(c.timeMin, DOSE_TIME_MIN), max: Math.min(c.timeMax, DOSE_TIME_MAX) })})`
     : 'Время дозирования, мин';
+
+  // ПУСК только если откалибровано (задан полный ход H).
+  const H = s.settings?.fullPathSteps || 0;
+  const pusk = document.querySelector('[data-cmd="pusk"]');
+  if (pusk) {
+    pusk.disabled = (H <= 0);
+    pusk.textContent = (H > 0) ? '▶ ПУСК' : '▶ Нужна калибровка';
+  }
 }
 
 // ─── Секундомер дозирования (тикает на клиенте, синхронно с elapsedSec) ──────
@@ -198,8 +216,8 @@ function renderDosing(s) {
 
 function renderDone(s) {
   const c = s.cycle || {}, d = s.dosing || {};
-  const planA = c.syringeA?.volume || 0;
-  const planB = c.syringeB?.volume || 0;
+  const planA = c.planVolA || 0;
+  const planB = c.planVolB || 0;
   $('pf-plan-a').textContent = fmt(planA);
   $('pf-fact-a').textContent = fmt(d.volumeA || 0);
   $('pf-plan-b').textContent = fmt(planB);

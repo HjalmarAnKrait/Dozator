@@ -33,7 +33,9 @@ private:
 
     bool     m_broadcastPending = false;
     uint32_t m_dosingStartMs    = 0;
-    int32_t  m_dosingTargetSteps = 0;   // сколько микрошагов = выдавить весь объём
+    int32_t  m_dosingStartPos   = 0;    // позиция заряда (2), шагов от дома
+    int32_t  m_dosingTargetSteps = 0;   // L2 = H - L, ход дозы 2→3, шагов
+    uint8_t  m_calibPhase        = 0;   // калибровка: 0 = хоуминг, 1 = спуск к концу
 
     static bool sleepAllowed(Screen s);
 };

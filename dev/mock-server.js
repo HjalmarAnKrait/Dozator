@@ -32,6 +32,7 @@ const T_CHARGE_B = 1700;    // мс до B (A + 800)
 const state = {
   screen: 'IDLE',
   doneReason: 'timer',
+  fullPathSteps: 120000,   // H (демо: откалибровано)
   screwPitch: 8.0,
   sleepTimeout: 15,
   parkSpeed: 800,
@@ -85,6 +86,7 @@ function buildState() {
       sleepTimeout: state.sleepTimeout,
       parkSpeed: state.parkSpeed,
       chargeSpeed: state.chargeSpeed,
+      fullPathSteps: state.fullPathSteps,
       presets: state.presets,
     },
     cycle: {
@@ -95,6 +97,8 @@ function buildState() {
       flowB: flowB(),
       timeMin: timeRange().min,
       timeMax: timeRange().max,
+      planVolA: volOf(state.syringeA),   // демо-план (в прошивке — по расстоянию L2)
+      planVolB: volOf(state.syringeB),
     },
     switches: state.switches,
     rawSwitches: state.rawSwitches,
@@ -109,6 +113,7 @@ function transitionTo(next) {
   screenEnterMs = Date.now();
   switch (next) {
     case 'IDLE':
+    case 'CALIBRATING':
       state.switches = { top: false, a: false, b: false, bot: false };
       break;
     case 'PARKED':
@@ -143,6 +148,10 @@ function tick() {
   let changed = false;
 
   switch (state.screen) {
+    case 'CALIBRATING':
+      if (elapsed >= 2500) { state.fullPathSteps = 120000; transitionTo('IDLE'); return; }
+      break;
+
     case 'PARKING':
       if (elapsed >= T_PARK_TOP) { state.rawSwitches.top = true; transitionTo('PARKED'); return; }
       break;
@@ -180,9 +189,10 @@ function handleMessage(msg) {
 
 function handleCommand(action) {
   if (action === 'reset') return transitionTo('PARKING');   // стоп + парковка из любого состояния
+  if (action === 'calibrate' && ['IDLE', 'DONE', 'PARKED'].includes(state.screen)) return transitionTo('CALIBRATING');
   if (action === 'park' && (state.screen === 'IDLE' || state.screen === 'DONE')) transitionTo('PARKING');
   else if (action === 'start_charging' && state.screen === 'PARKED') transitionTo('CHARGING');
-  else if (action === 'pusk' && state.screen === 'CHARGED') transitionTo('DOSING');
+  else if (action === 'pusk' && state.screen === 'CHARGED' && state.fullPathSteps > 0) transitionTo('DOSING');
   else if (action === 'abort' && state.screen === 'DOSING') { state.doneReason = 'abort'; transitionTo('DONE'); }
   else if (action === 'new_cycle' && state.screen === 'DONE') transitionTo('IDLE');
 }

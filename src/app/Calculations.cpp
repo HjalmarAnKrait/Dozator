@@ -46,6 +46,11 @@ float motorRpm() {
     return screwSpeedMmPerMin() / g_state.screwPitch;
 }
 
+float distToVolumeMl(float diameterMm, float distMm) {
+    // объём = площадь(мм²) × ход(мм) = мм³ → мл (÷1000)
+    return area(diameterMm) * distMm / 1000.0f;
+}
+
 TimeRange timeRangeMin() {
     float vA = volA();
     if (vA <= 0.0f) return {0.0f, 0.0f};

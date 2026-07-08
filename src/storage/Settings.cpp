@@ -39,6 +39,7 @@ bool Settings::load() {
     g_state.circularNav     = doc["circularNav"]   | true;
     g_state.parkSpeed       = doc["parkSpeed"]     | 800.0f;
     g_state.chargeSpeed     = doc["chargeSpeed"]   | 400.0f;
+    g_state.fullPathSteps   = doc["fullPathSteps"] | 0;
 
     JsonArray presets = doc["presets"].as<JsonArray>();
     if (presets) {
@@ -78,6 +79,7 @@ bool Settings::save() {
     doc["circularNav"]  = g_state.circularNav;
     doc["parkSpeed"]    = g_state.parkSpeed;
     doc["chargeSpeed"]  = g_state.chargeSpeed;
+    doc["fullPathSteps"] = g_state.fullPathSteps;
 
     JsonArray arr = doc["presets"].to<JsonArray>();
     for (int i = 0; i < g_state.presetsCount; i++) {

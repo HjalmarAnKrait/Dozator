@@ -40,6 +40,7 @@ enum class Screen : uint8_t {
     CHARGED,
     DOSING,
     DONE,
+    CALIBRATING,   // калибровка полного хода H (дом → конец)
     SERVICE_MENU,
     SERVICE_PITCH,
     SERVICE_SLEEP,
@@ -65,6 +66,7 @@ struct AppState {
     bool     circularNav      = true;
     float    parkSpeed        = 800.0f;   // шаг/с — хоуминг/парковка
     float    chargeSpeed      = 400.0f;   // шаг/с — плавный спуск при зарядке
+    int32_t  fullPathSteps    = 0;        // H — полный ход дом→конец, шагов (0 = не калибровано)
     SyringePreset presets[MAX_PRESETS];
     uint8_t  presetsCount     = 3;
 
@@ -78,6 +80,8 @@ struct AppState {
     SwitchStates  rawSwitches = {false, false, false, false};
     DosingProgress dosing     = {0, 0, 0, 0, 0};
     DoneReason     doneReason = DoneReason::TIMER;   // чем закончилось дозирование
+    float          planVolA   = 0.0f;   // плановый объём дозы (по расстоянию L2), мл
+    float          planVolB   = 0.0f;
 
     // ── UI state ───────────────────────────────────────────────────────────
     bool     displaySleeping     = false;

@@ -183,6 +183,9 @@ select {
 .btn-primary:active { background: var(--primary-d); }
 .btn-danger { background: var(--danger); }
 .btn-danger:active { background: var(--danger-d); }
+.btn-ghost { background: var(--card2); border: 1px solid var(--line); color: var(--text); margin-top: 12px; }
+.btn-ghost:active { background: var(--card); }
+.btn:disabled { opacity: 0.45; }
 
 /* ── Шприцы ───────────────────────────────────────────────────────────── */
 .syringe-grid {
