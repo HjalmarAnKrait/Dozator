@@ -10,19 +10,27 @@
 // Концевики: 4 сигнала + общий GND (3.3В к коробке тянуть НЕ нужно).
 // Драйвер: 3 сигнала + GND.
 
-// Мотор (EN посажен на GND — драйвер всегда включён, пин не нужен):
-#define STEP_STEP_PIN  14  // D5 – output, чистый пин, для STEP-импульсов
-#define STEP_DIR_PIN   16  // D0 – output (направление меняется редко)
+// Мотор (EN не заведён на МК — на драйвере RST+SLP→+5V, ENABLE не используется):
+#define STEP_STEP_PIN  4   // D2 → A4988 STEP
+#define STEP_DIR_PIN   5   // D1 → A4988 DIR
 
-// 4 концевика — все INPUT_PULLUP, замыкание на общий GND, срабатывание = LOW:
-#define SW_TOP_PIN     5   // D1
-#define SW_A_PIN       4   // D2
-#define SW_B_PIN       12  // D6
-#define SW_BOT_PIN     13  // D7
+// Микрошаг A4988 — теперь управляется МК (для 1/16 все три HIGH):
+#define MS1_PIN        13  // D7
+#define MS2_PIN        12  // D6
+#define MS3_PIN        14  // D5
 
-// Физическая кнопка СТОП/Сброс (двухфазная) — D3/GPIO0, INPUT_PULLUP, на GND.
-// На D3 уже есть подтяжка 10к (осталась от EN). ⚠️ boot-пин: не держать нажатой при включении.
-#define BTN_STOP_PIN   0   // D3
+// Концевики. ⚠️ Полярность РАЗНАЯ из-за особенностей пинов:
+//  TOP/A/B — INPUT_PULLUP, замыкание на GND, срабатывание = LOW.
+//  BOT (GPIO16) — нет внутренней подтяжки вверх → INPUT_PULLDOWN_16,
+//                 подключать на 3.3В, срабатывание = HIGH.
+#define SW_TOP_PIN     3   // RX/GPIO3  (INPUT_PULLUP, на GND) — теряется Serial RX
+#define SW_A_PIN       0   // D3        (INPUT_PULLUP, на GND) ⚠️ boot-пин: разомкнут при старте
+#define SW_B_PIN       2   // D4        (INPUT_PULLUP, на GND) ⚠️ boot-пин: разомкнут при старте
+#define SW_BOT_PIN     16  // D0        (INPUT_PULLDOWN_16, на 3.3В, active-HIGH)
+
+// Физическая кнопка СТОП (двухфазная). GPIO15 — boot-пин с подтяжкой ВНИЗ,
+// поэтому кнопку подключать на 3.3В (active-HIGH), INPUT.
+#define BTN_STOP_PIN   15  // D8/GPIO15 (INPUT, на 3.3В, active-HIGH) ⚠️ boot-пин: разомкнута при старте
 
 // ─── Motor ─────────────────────────────────────────────────────────────────
 #define STEPS_PER_MOTOR_REV   200

@@ -7,7 +7,7 @@
  * Шаги генерируются аппаратным таймером timer1 (ISR в IRAM) — на ESP8266
  * программная генерация в loop() не тянет высокие частоты шагов.
  *
- * Пины — из config.h: STEP_STEP_PIN, STEP_DIR_PIN, STEP_EN_PIN (EN active-LOW).
+ * Пины — из config.h: STEP_STEP_PIN, STEP_DIR_PIN (EN не заведён на МК).
  * Только один экземпляр (timer1 один на чип).
  */
 class RealStepper : public IStepperDriver {
