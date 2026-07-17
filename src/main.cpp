@@ -50,13 +50,10 @@ void setup() {
     g_switches = new RealSwitches();  // концевиков 4: D1/D2/D6/D7, INPUT_PULLUP
 #endif
 
-    // Микрошаг A4988 = 1/16 (MS1..MS3 все HIGH).
-    pinMode(MS1_PIN, OUTPUT); digitalWrite(MS1_PIN, HIGH);
-    pinMode(MS2_PIN, OUTPUT); digitalWrite(MS2_PIN, HIGH);
-    pinMode(MS3_PIN, OUTPUT); digitalWrite(MS3_PIN, HIGH);
+    // Микрошаг A4988 зашит перемычками на плате (MS1/2/3 → +5V = 1/16), МК не управляет.
 
-    // Физическая кнопка СТОП (D8/GPIO15, INPUT, на 3.3В, active-HIGH).
-    pinMode(BTN_STOP_PIN, INPUT);
+    // Физическая кнопка СТОП (D3/GPIO0, INPUT_PULLUP, на GND).
+    pinMode(BTN_STOP_PIN, INPUT_PULLUP);
 
     // 3. State machine
     g_sm.begin(g_stepper, g_switches, &g_settings);
@@ -79,9 +76,9 @@ void loop() {
     // DNS / Captive portal
     g_captive.tick();
 
-    // Физическая кнопка СТОП (active-HIGH, на 3.3В) с дебаунсом — по фронту нажатия.
+    // Физическая кнопка СТОП (active-LOW, на GND) с дебаунсом — по фронту нажатия.
     static Debounce btnStop;
-    if (btnStop.update(digitalRead(BTN_STOP_PIN) == HIGH, now) && btnStop.stable()) {
+    if (btnStop.update(digitalRead(BTN_STOP_PIN) == LOW, now) && btnStop.stable()) {
         g_sm.stopButtonPress();
     }
 
