@@ -203,7 +203,7 @@ function handleCommand(action) {
   if (action === 'reset') return transitionTo('PARKING');
   if (action === 'calibrate' && ['IDLE', 'DONE', 'PARKED'].includes(state.screen)) return transitionTo('CALIBRATING');
   if (action === 'park' && ['IDLE', 'DONE', 'STOPPED'].includes(state.screen)) transitionTo('PARKING');
-  else if (action === 'start_charging' && state.screen === 'PARKED') transitionTo('CHARGING');
+  else if (action === 'start_charging' && state.screen === 'PARKED' && state.fullPathSteps > 0) transitionTo('CHARGING');
   else if (action === 'pusk' && state.screen === 'CHARGED' && state.fullPathSteps > 0) transitionTo('DOSING');
   else if (action === 'abort' && state.screen === 'DOSING') { state.doneReason = 'abort'; transitionTo('DONE'); }
   else if (action === 'new_cycle' && state.screen === 'DONE') transitionTo('IDLE');

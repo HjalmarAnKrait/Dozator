@@ -225,6 +225,37 @@ select {
 .flow b { display: block; font-size: 26px; margin: 4px 0; }
 .flow small { font-size: 11px; color: var(--muted); }
 
+/* ── Модальное окно ───────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 100; padding: 20px;
+}
+.modal-overlay[hidden] { display: none; }
+.modal {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 22px;
+  max-width: 420px; width: 100%;
+}
+.modal p { font-size: 16px; line-height: 1.5; white-space: pre-line; }
+.modal-btns { display: flex; gap: 12px; margin-top: 20px; }
+.modal-btns .btn { flex: 1; margin-top: 0; }
+
+/* ── Справка по калибровке ────────────────────────────────────────────── */
+.calib-help {
+  background: var(--card2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin: 8px 0 14px;
+  font-size: 14px;
+}
+.calib-help ol { margin: 8px 0 8px 20px; }
+.calib-help li { margin-bottom: 6px; line-height: 1.4; }
+
 /* ── Отладка (jog) ────────────────────────────────────────────────────── */
 .jog-btns {
   display: grid;

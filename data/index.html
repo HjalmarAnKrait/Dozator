@@ -203,15 +203,38 @@
       <summary>🔧 Калибровка / сервис</summary>
       <div class="settings-body">
         <p class="hint" id="service-status">—</p>
+        <div class="calib-help">
+          <b>Как откалибровать ход (нужно один раз):</b>
+          <ol>
+            <li><b>Сними шприцы</b> — каретка пройдёт весь ход, ничего не должно мешать.</li>
+            <li>Проверь концевики <b>TOP</b> и <b>BOT</b>: нажми рукой — вверху загораются LED. Без них калибровка не пройдёт.</li>
+            <li>Нажми <b>«Калибровать ход»</b> → подтверди диалог.</li>
+            <li>Каретка едет <b>вверх до TOP</b> (дом = ноль), затем <b>вниз до BOT</b> (конец) — меряется полный ход <b>H</b>.</li>
+            <li>По срабатыванию BOT <b>H сохраняется</b>. Готово — можно заряжать и дозировать.</li>
+          </ol>
+          <small class="hint">Прервать — кнопкой «СТОП» вверху. H хранится до следующей калибровки.
+          Если TOP/BOT не найдены за ~2 мин — уйдёт в «Остановлено» с сообщением о причине.</small>
+        </div>
         <button class="btn btn-primary btn-xl" data-cmd="calibrate">⚙ Калибровать ход</button>
         <div class="set-row">
           <label>Полный ход H, шагов</label>
           <input type="number" id="set-H" step="1" min="0" max="5000000" inputmode="numeric">
         </div>
-        <small class="hint">H задаётся калибровкой (дом→конец). Правь вручную только если знаешь значение.</small>
+        <small class="hint">H задаётся калибровкой. Правь вручную только если знаешь значение.</small>
       </div>
     </details>
   </main>
+
+  <!-- Модальное окно (напр. «нужна калибровка») -->
+  <div class="modal-overlay" id="modal" hidden>
+    <div class="modal">
+      <p id="modal-msg"></p>
+      <div class="modal-btns">
+        <button class="btn btn-ghost" id="modal-cancel">Закрыть</button>
+        <button class="btn btn-primary" id="modal-ok">Открыть Сервис</button>
+      </div>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>

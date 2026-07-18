@@ -324,10 +324,30 @@ function fmt(v) {
 
 // ─── Events ─────────────────────────────────────────────────────────────────
 // Команды (кнопки)
+// ─── Модальное окно ─────────────────────────────────────────────────────────
+function showModal(msg) { $('modal-msg').textContent = msg; $('modal').hidden = false; }
+function hideModal() { $('modal').hidden = true; }
+function openService() {
+  hideModal();
+  const svc = $('service');
+  if (svc) { svc.open = true; svc.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+}
+$('modal-cancel').addEventListener('click', hideModal);
+$('modal-ok').addEventListener('click', openService);
+$('modal').addEventListener('click', (e) => { if (e.target === $('modal')) hideModal(); });
+
 document.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-cmd]');
   if (!btn || btn.disabled) return;
   const cmd = btn.dataset.cmd;
+  const calibrated = (lastState?.settings?.fullPathSteps || 0) > 0;
+
+  // Зарядку/дозу нельзя без калибровки — показываем модалку с подсказкой.
+  if ((cmd === 'start_charging' || cmd === 'pusk') && !calibrated) {
+    showModal('Сначала нужна калибровка хода.\n\n' +
+              'Открой «🔧 Калибровка / сервис» внизу и нажми «Калибровать ход» (сними шприцы).');
+    return;
+  }
   if (cmd === 'calibrate' &&
       !confirm('Калибровка прогонит каретку на весь ход (дом → конец).\n' +
                'Снимите шприцы и убедитесь, что ход свободен.\n\nПродолжить?')) return;

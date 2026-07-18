@@ -128,7 +128,8 @@ void WsProtocol::handleCommand(const char* action) {
              (g_state.screen == Screen::IDLE || g_state.screen == Screen::DONE ||
               g_state.screen == Screen::PARKED))
         m_sm->transitionTo(Screen::CALIBRATING);
-    else if (strcmp(action, "start_charging") == 0 && g_state.screen == Screen::PARKED)
+    else if (strcmp(action, "start_charging") == 0 && g_state.screen == Screen::PARKED
+             && g_state.fullPathSteps > 0)   // зарядка только после калибровки
         m_sm->transitionTo(Screen::CHARGING);
     else if (strcmp(action, "pusk") == 0 && g_state.screen == Screen::CHARGED
              && g_state.fullPathSteps > 0) {   // ПУСК только если откалибровано (H задан)
