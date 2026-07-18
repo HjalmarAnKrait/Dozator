@@ -53,6 +53,7 @@ const RANGES = {
   'screwPitch':        { min: 0.5, max: 20  },
   'parkSpeed':         { min: 50,  max: 15000 },
   'chargeSpeed':       { min: 50,  max: 15000 },
+  'fullPathSteps':     { min: 0,   max: 5000000 },
 };
 const DOSE_TIME_MIN = 0.3;   // жёсткий пол времени дозирования, мин
 const DOSE_TIME_MAX = 20;    // жёсткий потолок, мин
@@ -118,17 +119,19 @@ function render(s) {
 
   // 3) Содержимое активного экрана
   switch (screen) {
-    case 'IDLE':    renderIdle(s);    break;
-    case 'STOPPED': renderStopped(s); break;
-    case 'PARKED':  renderParked(s);  break;
-    case 'CHARGED': renderCharged(s); break;
-    case 'DOSING':  renderDosing(s);  break;
-    case 'DONE':    renderDone(s);    break;
+    case 'IDLE':        renderIdle(s);        break;
+    case 'CALIBRATING': renderCalibrating(s); break;
+    case 'STOPPED':     renderStopped(s);     break;
+    case 'PARKED':      renderParked(s);      break;
+    case 'CHARGED':     renderCharged(s);     break;
+    case 'DOSING':      renderDosing(s);      break;
+    case 'DONE':        renderDone(s);        break;
   }
   if (screen !== 'DOSING') stopwatchStop();
 
-  // 4) Настройки (в любой момент)
+  // 4) Настройки и сервис (в любой момент)
   renderSettings(s);
+  renderService(s);
 }
 
 function renderSwitches(sw) {
@@ -159,7 +162,24 @@ function renderIdle(s) {
   const el = $('calib-status');
   if (el) el.textContent = H > 0
     ? `Калибровка: OK (полный ход H = ${H} шаг)`
-    : '⚠ Не откалибровано — нажми «Калибровка хода»';
+    : '⚠ Не откалибровано — открой «🔧 Калибровка / сервис» ниже';
+}
+
+function renderCalibrating(s) {
+  const phase = s.ui?.calibPhase || 0;
+  const el = $('calib-phase');
+  if (el) el.textContent = phase === 0
+    ? 'Ищу дом — концевик TOP…'
+    : 'Измеряю полный ход до конца — концевик BOT…';
+}
+
+function renderService(s) {
+  const H = s.settings?.fullPathSteps || 0;
+  setVal($('set-H'), H);
+  const st = $('service-status');
+  if (st) st.textContent = H > 0
+    ? `✓ Откалибровано: полный ход H = ${H} шаг.`
+    : '⚠ Не откалибровано. Нажми «Калибровать ход» (сними шприцы).';
 }
 
 function renderStopped(s) {
@@ -335,6 +355,7 @@ bindNum('dose-time', 'doseTimeMin');
 bindNum('set-pitch', 'screwPitch');
 bindNum('set-parkspeed', 'parkSpeed');
 bindNum('set-chargespeed', 'chargeSpeed');
+bindNum('set-H', 'fullPathSteps');
 
 // Редактирование пресетов — на лету, с валидацией каждого поля.
 $('presets-list').addEventListener('input', (e) => {

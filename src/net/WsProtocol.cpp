@@ -73,6 +73,9 @@ void WsProtocol::handleDirectSet(const char* field, float value, AsyncWebSocketC
     } else if (strcmp(field, "chargeSpeed") == 0) {
         g_state.chargeSpeed = constrain(value, 50.0f, 15000.0f);
         m_settings->markDirty();
+    } else if (strcmp(field, "fullPathSteps") == 0) {
+        g_state.fullPathSteps = (int32_t)constrain(value, 0.0f, 5000000.0f);   // H, ручная правка
+        m_settings->markDirty();
     } else {
         ok = false;
     }
@@ -219,6 +222,7 @@ size_t WsProtocol::buildStateJson(char* buf, size_t bufLen) {
     JsonObject ui = doc["ui"].to<JsonObject>();
     ui["displaySleeping"]  = g_state.displaySleeping;
     ui["editingPresetIdx"] = g_state.editingPresetIdx;
+    ui["calibPhase"]       = g_state.calibPhase;   // 0 = поиск дома, 1 = измерение хода
     switch (g_state.stopCause) {   // причина STOPPED (для сообщения в UI)
         case StopCause::STUCK_HOME:   ui["stopCause"] = "stuck_home";   break;
         case StopCause::STUCK_CHARGE: ui["stopCause"] = "stuck_charge"; break;

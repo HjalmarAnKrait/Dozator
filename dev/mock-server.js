@@ -32,6 +32,7 @@ const T_CHARGE_B = 1700;    // мс до B (A + 800)
 const state = {
   screen: 'IDLE',
   doneReason: 'timer',
+  calibPhase: 0,
   fullPathSteps: 120000,   // H (демо: откалибровано)
   screwPitch: 8.0,
   sleepTimeout: 15,
@@ -102,7 +103,7 @@ function buildState() {
     },
     switches: state.switches,
     rawSwitches: state.rawSwitches,
-    ui: { stopCause: 'manual' },
+    ui: { stopCause: 'manual', calibPhase: state.calibPhase },
     dosing: { ...state.dosing, reason: state.doneReason },
   };
 }
@@ -151,6 +152,8 @@ function tick() {
 
   switch (state.screen) {
     case 'CALIBRATING':
+      state.calibPhase = elapsed < 1200 ? 0 : 1;   // демо: сначала «дом», потом «измерение»
+      changed = true;
       if (elapsed >= 2500) { state.fullPathSteps = 120000; transitionTo('IDLE'); return; }
       break;
 
@@ -212,6 +215,7 @@ function handleDirectSet(field, value) {
   else if (field === 'sleepTimeout') state.sleepTimeout = clamp(v, 5, 300) | 0;
   else if (field === 'parkSpeed') state.parkSpeed = clamp(v, 50, 15000);
   else if (field === 'chargeSpeed') state.chargeSpeed = clamp(v, 50, 15000);
+  else if (field === 'fullPathSteps') state.fullPathSteps = clamp(v, 0, 5000000) | 0;
   broadcast();
 }
 

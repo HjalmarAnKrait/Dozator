@@ -85,6 +85,7 @@ struct AppState {
     DosingProgress dosing     = {0, 0, 0, 0, 0};
     DoneReason     doneReason = DoneReason::TIMER;   // чем закончилось дозирование
     StopCause      stopCause  = StopCause::MANUAL;   // причина STOPPED
+    uint8_t        calibPhase = 0;   // калибровка: 0 = поиск дома (TOP), 1 = измерение хода
     float          planVolA   = 0.0f;   // плановый объём дозы (по расстоянию L2), мл
     float          planVolB   = 0.0f;
 

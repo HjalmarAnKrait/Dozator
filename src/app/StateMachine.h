@@ -36,7 +36,6 @@ private:
     uint32_t m_dosingStartMs    = 0;
     int32_t  m_dosingStartPos   = 0;    // позиция заряда (2), шагов от дома
     int32_t  m_dosingTargetSteps = 0;   // L2 = H - L, ход дозы 2→3, шагов
-    uint8_t  m_calibPhase        = 0;   // калибровка: 0 = хоуминг, 1 = спуск к концу
     uint32_t m_moveStartMs       = 0;   // старт хода-к-концевику (для сторожа застревания)
 
     static bool sleepAllowed(Screen s);

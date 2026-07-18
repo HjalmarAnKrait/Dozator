@@ -105,14 +105,14 @@ void StateMachine::transitionTo(Screen next) {
 
         case Screen::CALIBRATING:
             g_state.switches = {false, false, false, false};
-            m_calibPhase = 0;
+            g_state.calibPhase = 0;
             if (m_stepper) {
                 SwitchSnapshot csw = m_switches ? m_switches->read()
                                                 : SwitchSnapshot{false, false, false, false};
                 m_stepper->enable();
                 if (csw.top) {                 // уже дома → сразу спуск к концу (фаза 1)
                     m_stepper->zero();
-                    m_calibPhase = 1;
+                    g_state.calibPhase = 1;
                     m_stepper->moveTo(m_stepper->currentPosition() + 5000000, g_state.parkSpeed);
                 } else {                       // сначала к дому (TOP)
                     m_stepper->moveTo(m_stepper->currentPosition() - 5000000, g_state.parkSpeed);
@@ -223,7 +223,7 @@ void StateMachine::tick(uint32_t nowMs) {
         }
 
         case Screen::CALIBRATING:
-            if (m_calibPhase == 0) {                 // фаза 0: хоуминг к дому (TOP)
+            if (g_state.calibPhase == 0) {                 // фаза 0: хоуминг к дому (TOP)
                 if (sw.top) {
                     if (m_stepper) {
                         m_stepper->stop();
@@ -231,7 +231,7 @@ void StateMachine::tick(uint32_t nowMs) {
                         m_stepper->enable();
                         m_stepper->moveTo(m_stepper->currentPosition() + 5000000, g_state.parkSpeed);
                     }
-                    m_calibPhase = 1;
+                    g_state.calibPhase = 1;
                     m_moveStartMs = nowMs;           // сброс таймера сторожа на фазу 1
                     requestBroadcast();
                 } else if (moveStuck(nowMs)) {

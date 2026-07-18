@@ -39,7 +39,6 @@
         <p id="calib-status">Калибровка: —</p>
       </div>
       <button class="btn btn-primary btn-xl" data-cmd="park">⌂ Парковка</button>
-      <button class="btn btn-ghost btn-xl" data-cmd="calibrate">⚙ Калибровка хода</button>
     </section>
 
     <!-- ── STOPPED: аварийный стоп ──────────────────────────────────────── -->
@@ -55,7 +54,8 @@
       <div class="big-status">
         <div class="spinner"></div>
         <h2>Калибровка</h2>
-        <p>Измеряю полный ход: дом → конец…</p>
+        <p id="calib-phase">Подготовка…</p>
+        <p class="pf-note">Нажми «СТОП» вверху, чтобы прервать.</p>
       </div>
     </section>
 
@@ -174,6 +174,20 @@
           <div id="presets-list"></div>
           <small class="hint">vol — объём 1–500 мл, D — диаметр 1–150 мм</small>
         </div>
+      </div>
+    </details>
+
+    <!-- ── Сервис / калибровка ──────────────────────────────────────────── -->
+    <details class="settings" id="service">
+      <summary>🔧 Калибровка / сервис</summary>
+      <div class="settings-body">
+        <p class="hint" id="service-status">—</p>
+        <button class="btn btn-primary btn-xl" data-cmd="calibrate">⚙ Калибровать ход</button>
+        <div class="set-row">
+          <label>Полный ход H, шагов</label>
+          <input type="number" id="set-H" step="1" min="0" max="5000000" inputmode="numeric">
+        </div>
+        <small class="hint">H задаётся калибровкой (дом→конец). Правь вручную только если знаешь значение.</small>
       </div>
     </details>
   </main>
