@@ -10,9 +10,9 @@
 | Stepper STEP | D2    | GPIO4 | Output → A4988 STEP                        |
 | Stepper DIR  | D1    | GPIO5 | Output → A4988 DIR                         |
 | Концевик TOP | D5    | GPIO14| `INPUT_PULLUP`, на **GND** (active-LOW)    |
-| Концевик A   | D6    | GPIO12| `INPUT_PULLUP`, на **GND** (active-LOW)    |
+| Концевик A   | RX    | GPIO3 | `INPUT_PULLUP`, на **GND** (теряется Serial RX) |
 | Концевик B   | D7    | GPIO13| `INPUT_PULLUP`, на **GND** (active-LOW)    |
-| Концевик BOT | RX    | GPIO3 | `INPUT_PULLUP`, на **GND** (теряется Serial RX) |
+| Концевик BOT | D6    | GPIO12| `INPUT_PULLUP`, на **GND** (active-LOW)    |
 | Кнопка СТОП  | D3    | GPIO0 | `INPUT_PULLUP`, на **GND** (подтяжка 10к) ⚠️ boot |
 
 **Все концевики и кнопка — единообразно на GND, срабатывание = LOW.**
@@ -50,9 +50,9 @@ Vref подстроечником — под ток мотора (~0.3–0.5 В 
 
 ```
    TOP  → D5 (GPIO14) ─┐
-   A    → D6 (GPIO12) ─┤  вторые контакты → общий GND
+   A    → RX (GPIO3)  ─┤  вторые контакты → общий GND
    B    → D7 (GPIO13) ─┤  срабатывание = замыкание (LOW)
-   BOT  → RX (GPIO3)  ─┤
+   BOT  → D6 (GPIO12) ─┤
    СТОП → D3 (GPIO0)  ─┘
 ```
 

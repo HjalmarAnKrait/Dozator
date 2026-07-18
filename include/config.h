@@ -16,9 +16,9 @@
 
 // Концевики + кнопка — ВСЕ INPUT_PULLUP, замыкание на GND, срабатывание = LOW.
 #define SW_TOP_PIN     14  // D5
-#define SW_A_PIN       12  // D6
+#define SW_A_PIN       3   // RX/GPIO3 — на GND (теряется Serial RX)
 #define SW_B_PIN       13  // D7
-#define SW_BOT_PIN     3   // RX/GPIO3 — на GND (теряется Serial RX)
+#define SW_BOT_PIN     12  // D6
 
 // Физическая кнопка СТОП (двухфазная) — D3/GPIO0, INPUT_PULLUP, на GND (есть подтяжка 10к).
 // ⚠️ boot-пин: не держать нажатой при включении (кнопка в покое разомкнута — норма).
