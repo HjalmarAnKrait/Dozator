@@ -49,6 +49,26 @@
       </div>
     </section>
 
+    <!-- ── DEBUG: ручное движение мотора (концевики игнорируются) ─────────── -->
+    <section class="card screen" data-screen="DEBUG" hidden>
+      <h2>Отладка механики</h2>
+      <p class="pf-note warn">⚠ Концевики игнорируются — следи, чтобы каретка не упёрлась!</p>
+      <div class="stopwatch"><b id="jog-pos">0</b><small style="font-size:14px;color:var(--muted)"> шаг</small></div>
+      <div class="jog-btns">
+        <button class="btn btn-primary btn-xl" data-cmd="jog_up">▲ Вверх</button>
+        <button class="btn btn-primary btn-xl" data-cmd="jog_down">▼ Вниз</button>
+      </div>
+      <div class="set-row">
+        <label>Шагов за нажатие</label>
+        <input type="number" id="set-jogsteps" step="10" min="1" max="100000" inputmode="numeric">
+      </div>
+      <div class="set-row">
+        <label>Скорость, шаг/с (50–15000)</label>
+        <input type="number" id="set-jogspeed" step="50" min="50" max="15000" inputmode="numeric">
+      </div>
+      <button class="btn btn-ghost btn-xl" data-cmd="debug_back">← Назад (в парковку)</button>
+    </section>
+
     <!-- ── CALIBRATING: замер полного хода дом→конец ────────────────────── -->
     <section class="card screen" data-screen="CALIBRATING" hidden>
       <div class="big-status">
@@ -88,6 +108,7 @@
         </div>
       </div>
       <button class="btn btn-primary btn-xl" data-cmd="start_charging">Старт зарядки</button>
+      <button class="btn btn-ghost btn-xl" data-cmd="debug">🔧 Отладка (тест механики)</button>
     </section>
 
     <!-- ── CHARGING ─────────────────────────────────────────────────────── -->

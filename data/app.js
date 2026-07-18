@@ -54,6 +54,8 @@ const RANGES = {
   'parkSpeed':         { min: 50,  max: 15000 },
   'chargeSpeed':       { min: 50,  max: 15000 },
   'fullPathSteps':     { min: 0,   max: 5000000 },
+  'jogSteps':          { min: 1,   max: 100000 },
+  'jogSpeed':          { min: 50,  max: 15000 },
 };
 const DOSE_TIME_MIN = 0.3;   // жёсткий пол времени дозирования, мин
 const DOSE_TIME_MAX = 20;    // жёсткий потолок, мин
@@ -86,6 +88,7 @@ const STAGE_RU = {
   IDLE:        'Простой',
   CALIBRATING: 'Калибровка',
   STOPPED:     'Остановлено',
+  DEBUG:       'Отладка',
   PARKING:  'Парковка',
   PARKED:   'Готов',
   CHARGING: 'Зарядка',
@@ -93,7 +96,7 @@ const STAGE_RU = {
   DOSING:   'Дозирование',
   DONE:     'Готово',
 };
-const KNOWN = ['IDLE', 'CALIBRATING', 'STOPPED', 'PARKING', 'PARKED', 'CHARGING', 'CHARGED', 'DOSING', 'DONE'];
+const KNOWN = ['IDLE', 'CALIBRATING', 'STOPPED', 'DEBUG', 'PARKING', 'PARKED', 'CHARGING', 'CHARGED', 'DOSING', 'DONE'];
 
 // ─── Render ─────────────────────────────────────────────────────────────────
 function render(s) {
@@ -122,6 +125,7 @@ function render(s) {
     case 'IDLE':        renderIdle(s);        break;
     case 'CALIBRATING': renderCalibrating(s); break;
     case 'STOPPED':     renderStopped(s);     break;
+    case 'DEBUG':       renderDebug(s);       break;
     case 'PARKED':      renderParked(s);      break;
     case 'CHARGED':     renderCharged(s);     break;
     case 'DOSING':      renderDosing(s);      break;
@@ -180,6 +184,13 @@ function renderService(s) {
   if (st) st.textContent = H > 0
     ? `✓ Откалибровано: полный ход H = ${H} шаг.`
     : '⚠ Не откалибровано. Нажми «Калибровать ход» (сними шприцы).';
+}
+
+function renderDebug(s) {
+  const el = $('jog-pos');
+  if (el) el.textContent = s.ui?.motorPos ?? 0;
+  setVal($('set-jogsteps'), s.settings?.jogSteps ?? '');
+  setVal($('set-jogspeed'), s.settings?.jogSpeed ?? '');
 }
 
 function renderStopped(s) {
@@ -356,6 +367,8 @@ bindNum('set-pitch', 'screwPitch');
 bindNum('set-parkspeed', 'parkSpeed');
 bindNum('set-chargespeed', 'chargeSpeed');
 bindNum('set-H', 'fullPathSteps');
+bindNum('set-jogsteps', 'jogSteps');
+bindNum('set-jogspeed', 'jogSpeed');
 
 // Редактирование пресетов — на лету, с валидацией каждого поля.
 $('presets-list').addEventListener('input', (e) => {

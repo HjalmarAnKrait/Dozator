@@ -28,6 +28,14 @@ bool StateMachine::moveStuck(uint32_t nowMs) {
     return false;
 }
 
+// Отладка: сдвинуть мотор на jogSteps, игнорируя концевики (dir<0 вверх, dir>0 вниз).
+void StateMachine::jog(int dir) {
+    if (g_state.screen != Screen::DEBUG || !m_stepper) return;
+    int32_t step = (dir < 0) ? -g_state.jogSteps : g_state.jogSteps;
+    m_stepper->enable();
+    m_stepper->moveTo(m_stepper->currentPosition() + step, g_state.jogSpeed);
+}
+
 // Двухфазная кнопка (физическая D3 и глоб. кнопка UI): СТОП → (после стопа) Парковка.
 void StateMachine::stopButtonPress() {
     if (g_state.screen == Screen::STOPPED) {
@@ -130,6 +138,12 @@ void StateMachine::transitionTo(Screen next) {
             if (m_stepper) m_stepper->stop();
             break;
 
+        case Screen::DEBUG:
+            // Отладка: мотор включён, ждём jog-команд. Концевики игнорируются.
+            g_state.switches = {false, false, false, false};
+            if (m_stepper) { m_stepper->stop(); m_stepper->enable(); }
+            break;
+
         case Screen::PARKING: {
             g_state.switches = {false, false, false, false};
             // Если концевик TOP уже прижат — мы уже дома: не двигаемся, tick() сразу
@@ -166,6 +180,8 @@ void StateMachine::tick(uint32_t nowMs) {
         g_state.rawSwitches = {sw.top, sw.a, sw.b, sw.bot};
         requestBroadcast();
     }
+
+    if (m_stepper) g_state.motorPos = m_stepper->currentPosition();
 
     switch (g_state.screen) {
         case Screen::PARKING:
@@ -259,6 +275,11 @@ void StateMachine::tick(uint32_t nowMs) {
                     return;
                 }
             }
+            break;
+
+        case Screen::DEBUG:
+            // Концевики не проверяем (игнор). Пока едем — шлём живую позицию.
+            if (m_stepper && m_stepper->isBusy()) requestBroadcast();
             break;
 
         default:

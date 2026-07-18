@@ -225,6 +225,15 @@ select {
 .flow b { display: block; font-size: 26px; margin: 4px 0; }
 .flow small { font-size: 11px; color: var(--muted); }
 
+/* ── Отладка (jog) ────────────────────────────────────────────────────── */
+.jog-btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 14px 0 4px;
+}
+.jog-btns .btn { margin-top: 0; }
+
 /* ── Секундомер дозирования ───────────────────────────────────────────── */
 .stopwatch {
   text-align: center;

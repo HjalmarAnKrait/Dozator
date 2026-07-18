@@ -45,6 +45,7 @@ enum class Screen : uint8_t {
     DONE,
     CALIBRATING,   // калибровка полного хода H (дом → конец)
     STOPPED,       // аварийный стоп: мотор остановлен, ждём команды (парковка)
+    DEBUG,         // отладка: ручное движение мотора (концевики игнорируются)
     SERVICE_MENU,
     SERVICE_PITCH,
     SERVICE_SLEEP,
@@ -71,6 +72,8 @@ struct AppState {
     float    parkSpeed        = 800.0f;   // шаг/с — хоуминг/парковка
     float    chargeSpeed      = 400.0f;   // шаг/с — плавный спуск при зарядке
     int32_t  fullPathSteps    = 0;        // H — полный ход дом→конец, шагов (0 = не калибровано)
+    int32_t  jogSteps         = 200;      // отладка: шагов за одно нажатие
+    float    jogSpeed         = 800.0f;   // отладка: скорость, шаг/с
     SyringePreset presets[MAX_PRESETS];
     uint8_t  presetsCount     = 3;
 
@@ -86,6 +89,7 @@ struct AppState {
     DoneReason     doneReason = DoneReason::TIMER;   // чем закончилось дозирование
     StopCause      stopCause  = StopCause::MANUAL;   // причина STOPPED
     uint8_t        calibPhase = 0;   // калибровка: 0 = поиск дома (TOP), 1 = измерение хода
+    int32_t        motorPos   = 0;   // текущая позиция мотора, шагов (для отладки)
     float          planVolA   = 0.0f;   // плановый объём дозы (по расстоянию L2), мл
     float          planVolB   = 0.0f;
 

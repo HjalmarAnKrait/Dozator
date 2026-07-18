@@ -40,6 +40,8 @@ bool Settings::load() {
     g_state.parkSpeed       = doc["parkSpeed"]     | 800.0f;
     g_state.chargeSpeed     = doc["chargeSpeed"]   | 400.0f;
     g_state.fullPathSteps   = doc["fullPathSteps"] | 0;
+    g_state.jogSteps        = doc["jogSteps"]      | 200;
+    g_state.jogSpeed        = doc["jogSpeed"]      | 800.0f;
 
     JsonArray presets = doc["presets"].as<JsonArray>();
     if (presets) {
@@ -80,6 +82,8 @@ bool Settings::save() {
     doc["parkSpeed"]    = g_state.parkSpeed;
     doc["chargeSpeed"]  = g_state.chargeSpeed;
     doc["fullPathSteps"] = g_state.fullPathSteps;
+    doc["jogSteps"]      = g_state.jogSteps;
+    doc["jogSpeed"]      = g_state.jogSpeed;
 
     JsonArray arr = doc["presets"].to<JsonArray>();
     for (int i = 0; i < g_state.presetsCount; i++) {

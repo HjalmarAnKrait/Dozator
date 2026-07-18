@@ -19,6 +19,7 @@ public:
     void transitionTo(Screen next);
     void tick(uint32_t nowMs);
     void stopButtonPress();   // физическая кнопка / глоб. UI: двухфазный СТОП→Парковка
+    void jog(int dir);        // отладка: сдвинуть на jogSteps (dir<0 вверх, dir>0 вниз)
 
     bool needsBroadcast() {
         bool b = m_broadcastPending;

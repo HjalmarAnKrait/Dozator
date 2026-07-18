@@ -34,6 +34,9 @@ const state = {
   doneReason: 'timer',
   calibPhase: 0,
   fullPathSteps: 120000,   // H (демо: откалибровано)
+  jogSteps: 200,
+  jogSpeed: 800,
+  motorPos: 0,
   screwPitch: 8.0,
   sleepTimeout: 15,
   parkSpeed: 800,
@@ -88,6 +91,8 @@ function buildState() {
       parkSpeed: state.parkSpeed,
       chargeSpeed: state.chargeSpeed,
       fullPathSteps: state.fullPathSteps,
+      jogSteps: state.jogSteps,
+      jogSpeed: state.jogSpeed,
       presets: state.presets,
     },
     cycle: {
@@ -103,7 +108,7 @@ function buildState() {
     },
     switches: state.switches,
     rawSwitches: state.rawSwitches,
-    ui: { stopCause: 'manual', calibPhase: state.calibPhase },
+    ui: { stopCause: 'manual', calibPhase: state.calibPhase, motorPos: state.motorPos },
     dosing: { ...state.dosing, reason: state.doneReason },
   };
 }
@@ -117,6 +122,7 @@ function transitionTo(next) {
     case 'IDLE':
     case 'CALIBRATING':
     case 'STOPPED':
+    case 'DEBUG':
       state.switches = { top: false, a: false, b: false, bot: false };
       break;
     case 'PARKED':
@@ -201,6 +207,10 @@ function handleCommand(action) {
   else if (action === 'pusk' && state.screen === 'CHARGED' && state.fullPathSteps > 0) transitionTo('DOSING');
   else if (action === 'abort' && state.screen === 'DOSING') { state.doneReason = 'abort'; transitionTo('DONE'); }
   else if (action === 'new_cycle' && state.screen === 'DONE') transitionTo('IDLE');
+  else if (action === 'debug' && state.screen === 'PARKED') transitionTo('DEBUG');
+  else if (action === 'debug_back' && state.screen === 'DEBUG') transitionTo('PARKED');
+  else if (action === 'jog_up' && state.screen === 'DEBUG') { state.motorPos -= state.jogSteps; broadcast(); }
+  else if (action === 'jog_down' && state.screen === 'DEBUG') { state.motorPos += state.jogSteps; broadcast(); }
 }
 
 function handleDirectSet(field, value) {
@@ -216,6 +226,8 @@ function handleDirectSet(field, value) {
   else if (field === 'parkSpeed') state.parkSpeed = clamp(v, 50, 15000);
   else if (field === 'chargeSpeed') state.chargeSpeed = clamp(v, 50, 15000);
   else if (field === 'fullPathSteps') state.fullPathSteps = clamp(v, 0, 5000000) | 0;
+  else if (field === 'jogSteps') state.jogSteps = clamp(v, 1, 100000) | 0;
+  else if (field === 'jogSpeed') state.jogSpeed = clamp(v, 50, 15000);
   broadcast();
 }
 

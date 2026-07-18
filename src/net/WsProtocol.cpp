@@ -76,6 +76,12 @@ void WsProtocol::handleDirectSet(const char* field, float value, AsyncWebSocketC
     } else if (strcmp(field, "fullPathSteps") == 0) {
         g_state.fullPathSteps = (int32_t)constrain(value, 0.0f, 5000000.0f);   // H, ручная правка
         m_settings->markDirty();
+    } else if (strcmp(field, "jogSteps") == 0) {
+        g_state.jogSteps = (int32_t)constrain(value, 1.0f, 100000.0f);
+        m_settings->markDirty();
+    } else if (strcmp(field, "jogSpeed") == 0) {
+        g_state.jogSpeed = constrain(value, 50.0f, 15000.0f);
+        m_settings->markDirty();
     } else {
         ok = false;
     }
@@ -133,6 +139,15 @@ void WsProtocol::handleCommand(const char* action) {
     } else if (strcmp(action, "new_cycle") == 0 && g_state.screen == Screen::DONE) {
         m_sm->transitionTo(Screen::IDLE);   // без автопарковки — ждём команду «Парковка»
     }
+    // Отладка (jog): вход из PARKED, выход обратно в PARKED.
+    else if (strcmp(action, "debug") == 0 && g_state.screen == Screen::PARKED)
+        m_sm->transitionTo(Screen::DEBUG);
+    else if (strcmp(action, "debug_back") == 0 && g_state.screen == Screen::DEBUG)
+        m_sm->transitionTo(Screen::PARKED);
+    else if (strcmp(action, "jog_up") == 0 && g_state.screen == Screen::DEBUG)
+        m_sm->jog(-1);
+    else if (strcmp(action, "jog_down") == 0 && g_state.screen == Screen::DEBUG)
+        m_sm->jog(+1);
 }
 
 static const char* screenName(Screen s) {
@@ -146,6 +161,7 @@ static const char* screenName(Screen s) {
         case Screen::DONE:                 return "DONE";
         case Screen::CALIBRATING:          return "CALIBRATING";
         case Screen::STOPPED:              return "STOPPED";
+        case Screen::DEBUG:                return "DEBUG";
         case Screen::SERVICE_MENU:         return "SERVICE_MENU";
         case Screen::SERVICE_PITCH:        return "SERVICE_PITCH";
         case Screen::SERVICE_SLEEP:        return "SERVICE_SLEEP";
@@ -168,6 +184,8 @@ size_t WsProtocol::buildStateJson(char* buf, size_t bufLen) {
     settings["parkSpeed"]    = g_state.parkSpeed;
     settings["chargeSpeed"]  = g_state.chargeSpeed;
     settings["fullPathSteps"] = g_state.fullPathSteps;   // H (0 = не калибровано)
+    settings["jogSteps"]     = g_state.jogSteps;
+    settings["jogSpeed"]     = g_state.jogSpeed;
     JsonArray presets = settings["presets"].to<JsonArray>();
     for (int i = 0; i < g_state.presetsCount; i++) {
         JsonObject p = presets.add<JsonObject>();
@@ -223,6 +241,7 @@ size_t WsProtocol::buildStateJson(char* buf, size_t bufLen) {
     ui["displaySleeping"]  = g_state.displaySleeping;
     ui["editingPresetIdx"] = g_state.editingPresetIdx;
     ui["calibPhase"]       = g_state.calibPhase;   // 0 = поиск дома, 1 = измерение хода
+    ui["motorPos"]         = g_state.motorPos;     // позиция мотора (шагов) — для отладки
     switch (g_state.stopCause) {   // причина STOPPED (для сообщения в UI)
         case StopCause::STUCK_HOME:   ui["stopCause"] = "stuck_home";   break;
         case StopCause::STUCK_CHARGE: ui["stopCause"] = "stuck_charge"; break;
