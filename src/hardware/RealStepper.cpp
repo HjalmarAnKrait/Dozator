@@ -71,10 +71,10 @@ void RealStepper::moveTo(int32_t targetSteps, float speedStepsPerSec) {
     if (delta == 0) { stop(); return; }
 
     int8_t dir = (delta > 0) ? 1 : -1;
-    // Конвенция направления ИНВЕРТИРОВАНА: положительные шаги → DIR LOW.
+    // Конвенция направления: положительные шаги → DIR HIGH.
     // (Переворачивает физическое направление всех движений; счётчик позиции
-    //  остаётся логически верным. Вернуть обратно — поменять LOW/HIGH местами.)
-    digitalWrite(STEP_DIR_PIN, (dir > 0) ? LOW : HIGH);
+    //  остаётся логически верным. Вернуть обратно — поменять HIGH/LOW местами.)
+    digitalWrite(STEP_DIR_PIN, (dir > 0) ? HIGH : LOW);
 
     float spd = speedStepsPerSec;
     if (spd < 1.0f) spd = 1.0f;
