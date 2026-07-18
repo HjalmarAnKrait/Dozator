@@ -240,9 +240,28 @@ select {
   padding: 22px;
   max-width: 420px; width: 100%;
 }
-.modal p { font-size: 16px; line-height: 1.5; white-space: pre-line; }
+.modal-body { font-size: 15px; line-height: 1.55; max-height: 68vh; overflow-y: auto; }
+.modal-body b { color: var(--text); }
+.modal-body ol { margin: 8px 0 8px 20px; }
+.modal-body li { margin-bottom: 6px; }
 .modal-btns { display: flex; gap: 12px; margin-top: 20px; }
 .modal-btns .btn { flex: 1; margin-top: 0; }
+
+/* ── Кнопка справки «?» ───────────────────────────────────────────────── */
+.help-btn {
+  width: 22px; height: 22px; min-width: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--card2);
+  color: var(--muted);
+  font-size: 13px; font-weight: 700; line-height: 1;
+  padding: 0; cursor: pointer;
+  vertical-align: middle;
+}
+.help-btn:active { background: var(--card); }
+.title-wrap { display: flex; align-items: center; gap: 8px; }
+.label-row { display: flex; align-items: center; gap: 8px; margin: 12px 0 6px; }
+.label-row label { margin: 0; }
 
 /* ── Справка по калибровке ────────────────────────────────────────────── */
 .calib-help {
