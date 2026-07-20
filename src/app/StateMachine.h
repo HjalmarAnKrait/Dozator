@@ -20,6 +20,8 @@ public:
     void tick(uint32_t nowMs);
     void stopButtonPress();   // физическая кнопка / глоб. UI: двухфазный СТОП→Парковка
     void jog(int dir);        // отладка: сдвинуть на jogSteps (dir<0 вверх, dir>0 вниз)
+    void jogHold(int dir);    // отладка: непрерывное движение (удержание кнопки)
+    void jogStop();           // отладка: остановить движение (отпустили кнопку)
 
     bool needsBroadcast() {
         bool b = m_broadcastPending;

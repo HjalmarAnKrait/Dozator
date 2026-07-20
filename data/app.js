@@ -113,6 +113,8 @@ function render(s) {
     if (screen === 'STOPPED') { rb.textContent = '⌂ Парковка'; rb.dataset.cmd = 'park'; }
     else { rb.textContent = '■ СТОП'; rb.dataset.cmd = 'stop'; }
   }
+  const mb = $('btn-manual');
+  if (mb) mb.hidden = (screen === 'DEBUG');
 
   const target = KNOWN.includes(screen) ? screen : 'OTHER';
   document.querySelectorAll('.screen').forEach((el) => {
@@ -165,7 +167,7 @@ function renderIdle(s) {
   const H = s.settings?.fullPathSteps || 0;
   const el = $('calib-status');
   if (el) el.textContent = H > 0
-    ? `Калибровка: OK (полный ход H = ${H} шаг)`
+    ? `Калибровка: OK (полный ход H = ${fmtCm(H)} см)`
     : '⚠ Не откалибровано — открой «🔧 Калибровка / сервис» ниже';
 }
 
@@ -179,10 +181,11 @@ function renderCalibrating(s) {
 
 function renderService(s) {
   const H = s.settings?.fullPathSteps || 0;
-  setVal($('set-H'), H);
+  setValCm($('set-H'), H);
+  stepsInfo('H-info', H, 'шаг');
   const st = $('service-status');
   if (st) st.textContent = H > 0
-    ? `✓ Откалибровано: H = ${H} шаг (≈ ${fmtCm(H)} см).`
+    ? `✓ Откалибровано: H = ${fmtCm(H)} см (${H} шаг).`
     : '⚠ Не откалибровано. Нажми «Калибровать ход» (сними шприцы).';
 }
 
@@ -190,8 +193,10 @@ function renderDebug(s) {
   const pos = s.ui?.motorPos ?? 0;
   if ($('jog-pos')) $('jog-pos').textContent = pos;
   if ($('jog-pos-cm')) $('jog-pos-cm').textContent = fmtCm(pos);
-  setVal($('set-jogsteps'), s.settings?.jogSteps ?? '');
-  setVal($('set-jogspeed'), s.settings?.jogSpeed ?? '');
+  setValCm($('set-jogsteps'), s.settings?.jogSteps ?? 0);
+  setValCm($('set-jogspeed'), s.settings?.jogSpeed ?? 0);
+  stepsInfo('jogsteps-info', s.settings?.jogSteps ?? 0, 'шаг');
+  stepsInfo('jogspeed-info', s.settings?.jogSpeed ?? 0, 'шаг/с');
 }
 
 function renderStopped(s) {
@@ -296,8 +301,10 @@ function renderDone(s) {
 
 function renderSettings(s) {
   setVal($('set-pitch'), fmt(s.settings?.screwPitch));
-  setVal($('set-parkspeed'), fmt(s.settings?.parkSpeed));
-  setVal($('set-chargespeed'), fmt(s.settings?.chargeSpeed));
+  setValCm($('set-parkspeed'), s.settings?.parkSpeed ?? 0);
+  setValCm($('set-chargespeed'), s.settings?.chargeSpeed ?? 0);
+  stepsInfo('parkspeed-info', s.settings?.parkSpeed ?? 0, 'шаг/с');
+  stepsInfo('chargespeed-info', s.settings?.chargeSpeed ?? 0, 'шаг/с');
   renderPresets(s.settings?.presets || []);
 }
 
@@ -332,6 +339,38 @@ function stepsToMm(steps) {
   return steps * pitch / STEPS_PER_REV;
 }
 function fmtCm(steps) { return (Math.round(stepsToMm(steps) / 10 * 100) / 100).toFixed(2); }
+function pitchMm() { return lastState?.settings?.screwPitch || 8; }
+function cmToSteps(cm) { return Math.round(cm * 10 * STEPS_PER_REV / pitchMm()); }        // см(/с) → шаги(/с)
+function stepsToCmVal(steps) { return steps * pitchMm() / STEPS_PER_REV / 10; }            // шаги(/с) → см(/с)
+
+// Поле в сантиметрах (пользователь оперирует см; в прошивку уходят шаги).
+function setValCm(el, steps) {
+  if (el && document.activeElement !== el) {
+    el.value = (Math.round(stepsToCmVal(steps) * 1000) / 1000);
+    el.classList.remove('invalid');
+  }
+}
+function bindCm(id, field, stepsInfoId) {
+  const el = $(id);
+  if (!el) return;
+  const apply = (clamp) => {
+    if (el.value === '') { markInvalid(el, false); return; }
+    const cm = parseFloat(el.value);
+    if (!isFinite(cm)) { markInvalid(el, true); return; }
+    let steps = cmToSteps(cm);
+    const r = getRange(field);
+    if (clamp) { steps = clampNum(steps, r); el.value = (Math.round(stepsToCmVal(steps) * 1000) / 1000); }
+    const ok = steps >= r.min && steps <= r.max;
+    markInvalid(el, !ok && !clamp);
+    if (ok || clamp) send({ type: 'direct_set', field, value: steps });
+  };
+  el.addEventListener('input', () => apply(false));
+  el.addEventListener('blur',  () => apply(true));
+}
+function stepsInfo(id, steps, unit) {
+  const el = $(id);
+  if (el) el.textContent = `= ${Math.round(steps)} ${unit}`;
+}
 
 // ─── Справка (модалка) ──────────────────────────────────────────────────────
 const HELP = {
@@ -366,17 +405,23 @@ const HELP = {
     Типовой Tr8×8 (частый на 3D-принтерах) = <b>8 мм/об</b>; Tr8×2 = 2 мм/об.<br><br>
     <b>Влияние:</b> тайминг движения от него <b>не зависит</b> (ход меряется в шагах). Нужен только для
     пересчёта шагов в <b>см и мл</b> для отображения. Если см/объём врут — поправь это значение.`,
-  parkSpeed: `<b>Скорость парковки, шаг/с</b><br><br>
-    Скорость движения к дому (TOP) при парковке и в фазе поиска дома при калибровке. 50–15000.`,
-  chargeSpeed: `<b>Скорость зарядки, шаг/с</b><br><br>
-    Скорость плавного спуска к концевикам A/B. Обычно ниже парковочной, чтобы аккуратно лечь на штоки. 50–15000.`,
-  fullPathSteps: `<b>Полный ход H, шагов</b><br><br>
-    Результат калибровки: шаги мотора от дома (TOP) до конца (BOT). Обычно ставится калибровкой автоматически.
-    Правь вручную только если знаешь точное значение. <b>0 = не откалибровано</b> (зарядка и ПУСК заблокированы).`,
-  jog: `<b>Отладка (jog)</b><br><br>
-    Ручное движение мотора для проверки механики, <b>игнорируя концевики</b>.<br>
-    «Шагов за нажатие» — насколько сдвинется каретка по ▲/▼. «Скорость» — как быстро.<br>
-    ⚠️ Концевики не остановят — следи за кареткой. Настройки сохраняются.`,
+  parkSpeed: `<b>Скорость парковки, см/с</b><br><br>
+    Скорость движения к дому (TOP) при парковке и в фазе поиска дома при калибровке.<br>
+    Рядом справочно показаны шаги/с (см пересчитываются через «Шаг винта»).`,
+  chargeSpeed: `<b>Скорость зарядки, см/с</b><br><br>
+    Скорость плавного спуска к концевикам A/B. Обычно ниже парковочной, чтобы аккуратно лечь на штоки.<br>
+    Рядом справочно показаны шаги/с.`,
+  fullPathSteps: `<b>Полный ход H, см</b><br><br>
+    Результат калибровки: расстояние от дома (TOP) до конца (BOT). Обычно ставится калибровкой автоматически.
+    Правь вручную только если знаешь точное значение. <b>0 = не откалибровано</b> (зарядка и ПУСК заблокированы).<br>
+    Рядом справочно показано то же значение в шагах мотора.`,
+  jog: `<b>Ручной режим (отладка)</b><br><br>
+    Ручное движение мотора для проверки механики, <b>игнорируя концевики</b>. Доступен из любого состояния
+    (кнопка «🔧 Ручной режим» вверху).<br><br>
+    <b>Короткое нажатие</b> ▲/▼ — сдвиг на «Расстояние за нажатие».<br>
+    <b>Удержание</b> ▲/▼ — движение, пока держишь кнопку; отпустил — остановилось.<br>
+    «Расстояние за нажатие» и «Скорость» задаются в <b>см</b> (справа — эквивалент в шагах). Настройки сохраняются.<br>
+    ⚠️ Концевики не остановят — следи за кареткой. «Выход» — переводит в простой (IDLE).`,
   syringe: `<b>Шприц A / B</b><br><br>
     Объём (пресет) и диаметр шприца. Диаметр <b>не влияет на движение</b> (оно по расстоянию), нужен только
     для оценки <b>объёма в мл</b> (площадь × ход). Оба шприца двигаются вместе одной кареткой.`,
@@ -385,8 +430,8 @@ const HELP = {
     <b>TOP</b> — дом (верх, ноль). <b>A / B</b> — заряд (штоки прижаты). <b>BOT</b> — конец хода (низ).<br>
     Загорается зелёным при замыкании. Удобно проверять пайку/полярность.`,
   position: `<b>Позиция мотора</b><br><br>
-    Положение каретки в <b>шагах</b> от дома. Это <b>микрошаги</b>: при 1/16 один оборот = 3200 шагов,
-    поэтому числа крупные — это норма. Рядом эквивалент в <b>см</b> (через «Шаг винта») — так нагляднее.`,
+    Положение каретки от дома. Главное число — в <b>см</b> (через «Шаг винта»). Рядом справочно — в <b>шагах</b>:
+    это микрошаги (1/16 → 3200 шаг/об), поэтому числа крупные — это норма.`,
 };
 
 let modalAction = null;
@@ -424,9 +469,13 @@ document.addEventListener('click', (e) => {
               { label: 'Открыть Сервис', fn: openService });
     return;
   }
-  if (cmd === 'calibrate' &&
-      !confirm('Калибровка прогонит каретку на весь ход (дом → конец).\n' +
-               'Снимите шприцы и убедитесь, что ход свободен.\n\nПродолжить?')) return;
+  // Калибровка — подтверждение через свою модалку (нативный confirm() ненадёжен в iOS).
+  if (cmd === 'calibrate') {
+    showModal('<b>Калибровка хода</b><br><br>Каретка пройдёт весь ход (дом → конец). ' +
+              '<b>Сними шприцы</b> и убедись, что ход свободен.<br><br>Продолжить?',
+              { label: 'Продолжить', fn: () => { hideModal(); send({ type: 'command', action: 'calibrate' }); } });
+    return;
+  }
   send({ type: 'command', action: cmd });
 });
 
@@ -460,11 +509,38 @@ bindNum('diam-a',    'syringeA.diameter');
 bindNum('diam-b',    'syringeB.diameter');
 bindNum('dose-time', 'doseTimeMin');
 bindNum('set-pitch', 'screwPitch');
-bindNum('set-parkspeed', 'parkSpeed');
-bindNum('set-chargespeed', 'chargeSpeed');
-bindNum('set-H', 'fullPathSteps');
-bindNum('set-jogsteps', 'jogSteps');
-bindNum('set-jogspeed', 'jogSpeed');
+bindCm('set-parkspeed', 'parkSpeed');
+bindCm('set-chargespeed', 'chargeSpeed');
+bindCm('set-H', 'fullPathSteps');
+bindCm('set-jogsteps', 'jogSteps');
+bindCm('set-jogspeed', 'jogSpeed');
+// Кнопки ▲/▼: короткое нажатие = фикс. сдвиг (jog), удержание = движение до отпускания.
+function bindJog(btnId, dir) {
+  const el = $(btnId);
+  if (!el) return;
+  let timer = null, held = false, active = false;
+  const HOLD_MS = 250;
+  el.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    try { el.setPointerCapture(e.pointerId); } catch {}
+    active = true; held = false;
+    timer = setTimeout(() => {
+      held = true;
+      send({ type: 'command', action: dir < 0 ? 'jog_hold_up' : 'jog_hold_down' });
+    }, HOLD_MS);
+  });
+  const finish = () => {
+    if (!active) return;
+    active = false;
+    if (timer) { clearTimeout(timer); timer = null; }
+    send({ type: 'command', action: held ? 'jog_stop' : (dir < 0 ? 'jog_up' : 'jog_down') });
+    held = false;
+  };
+  el.addEventListener('pointerup', finish);
+  el.addEventListener('pointercancel', finish);
+}
+bindJog('jog-up-btn', -1);
+bindJog('jog-down-btn', +1);
 
 // Редактирование пресетов — на лету, с валидацией каждого поля.
 $('presets-list').addEventListener('input', (e) => {

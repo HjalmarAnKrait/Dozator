@@ -140,15 +140,21 @@ void WsProtocol::handleCommand(const char* action) {
     } else if (strcmp(action, "new_cycle") == 0 && g_state.screen == Screen::DONE) {
         m_sm->transitionTo(Screen::IDLE);   // без автопарковки — ждём команду «Парковка»
     }
-    // Отладка (jog): вход из PARKED, выход обратно в PARKED.
-    else if (strcmp(action, "debug") == 0 && g_state.screen == Screen::PARKED)
+    // Отладка (jog): вход из ЛЮБОГО состояния, выход в IDLE.
+    else if (strcmp(action, "debug") == 0 && g_state.screen != Screen::DEBUG)
         m_sm->transitionTo(Screen::DEBUG);
     else if (strcmp(action, "debug_back") == 0 && g_state.screen == Screen::DEBUG)
-        m_sm->transitionTo(Screen::PARKED);
+        m_sm->transitionTo(Screen::IDLE);
     else if (strcmp(action, "jog_up") == 0 && g_state.screen == Screen::DEBUG)
         m_sm->jog(-1);
     else if (strcmp(action, "jog_down") == 0 && g_state.screen == Screen::DEBUG)
         m_sm->jog(+1);
+    else if (strcmp(action, "jog_hold_up") == 0 && g_state.screen == Screen::DEBUG)
+        m_sm->jogHold(-1);
+    else if (strcmp(action, "jog_hold_down") == 0 && g_state.screen == Screen::DEBUG)
+        m_sm->jogHold(+1);
+    else if (strcmp(action, "jog_stop") == 0 && g_state.screen == Screen::DEBUG)
+        m_sm->jogStop();
 }
 
 static const char* screenName(Screen s) {

@@ -109,6 +109,21 @@ body {
   cursor: pointer;
 }
 .btn-reset:active { background: rgba(224, 71, 62, 0.28); }
+.btn-manual {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  border: 1px solid var(--line);
+  background: var(--card2);
+  color: var(--muted);
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 9px;
+  cursor: pointer;
+}
+.btn-manual:active { background: var(--card); }
+.steps-info { color: var(--muted); font-size: 12px; font-weight: 400; }
 
 /* ── Контент ──────────────────────────────────────────────────────────── */
 main { padding: 16px 14px; max-width: 560px; margin: 0 auto; }

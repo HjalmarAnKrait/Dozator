@@ -207,10 +207,22 @@ function handleCommand(action) {
   else if (action === 'pusk' && state.screen === 'CHARGED' && state.fullPathSteps > 0) transitionTo('DOSING');
   else if (action === 'abort' && state.screen === 'DOSING') { state.doneReason = 'abort'; transitionTo('DONE'); }
   else if (action === 'new_cycle' && state.screen === 'DONE') transitionTo('IDLE');
-  else if (action === 'debug' && state.screen === 'PARKED') transitionTo('DEBUG');
-  else if (action === 'debug_back' && state.screen === 'DEBUG') transitionTo('PARKED');
+  else if (action === 'debug' && state.screen !== 'DEBUG') transitionTo('DEBUG');
+  else if (action === 'debug_back' && state.screen === 'DEBUG') transitionTo('IDLE');
   else if (action === 'jog_up' && state.screen === 'DEBUG') { state.motorPos -= state.jogSteps; broadcast(); }
   else if (action === 'jog_down' && state.screen === 'DEBUG') { state.motorPos += state.jogSteps; broadcast(); }
+  else if (action === 'jog_hold_up' && state.screen === 'DEBUG') { jogHold(-1); }
+  else if (action === 'jog_hold_down' && state.screen === 'DEBUG') { jogHold(+1); }
+  else if (action === 'jog_stop' && state.screen === 'DEBUG') { if (state._jogTimer) { clearInterval(state._jogTimer); state._jogTimer = null; broadcast(); } }
+}
+
+// имитация удержания: двигаем непрерывно, пока не пришёл jog_stop
+function jogHold(dir) {
+  if (state._jogTimer) clearInterval(state._jogTimer);
+  state._jogTimer = setInterval(() => {
+    state.motorPos += dir * Math.max(1, Math.round(state.jogSpeed / 20));
+    broadcast();
+  }, 50);
 }
 
 function handleDirectSet(field, value) {

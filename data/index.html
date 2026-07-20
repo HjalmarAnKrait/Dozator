@@ -29,6 +29,8 @@
     </div>
     <!-- Глобальный сброс, двухфазный: 1-е нажатие — СТОП, 2-е — Парковка -->
     <button class="btn-reset" id="btn-reset" data-cmd="stop">■ СТОП</button>
+    <!-- Вход в ручной режим (отладку) из любого состояния -->
+    <button class="btn-manual" id="btn-manual" data-cmd="debug">🔧 Ручной режим</button>
   </header>
 
   <main id="main">
@@ -56,22 +58,23 @@
     <section class="card screen" data-screen="DEBUG" hidden>
       <h2>Отладка механики <button class="help-btn" data-help="jog">?</button></h2>
       <p class="pf-note warn">⚠ Концевики игнорируются — следи, чтобы каретка не упёрлась!</p>
-      <div class="stopwatch"><b id="jog-pos">0</b><small style="font-size:14px;color:var(--muted)"> шаг</small></div>
-      <div class="pf-note" style="margin-top:-10px">≈ <b id="jog-pos-cm">0</b> см от дома
+      <div class="stopwatch"><b id="jog-pos-cm">0</b><small style="font-size:14px;color:var(--muted)"> см от дома</small></div>
+      <div class="pf-note" style="margin-top:-10px"><b id="jog-pos">0</b> шаг
         <button class="help-btn" data-help="position">?</button></div>
       <div class="jog-btns">
-        <button class="btn btn-primary btn-xl" data-cmd="jog_up">▲ Вверх</button>
-        <button class="btn btn-primary btn-xl" data-cmd="jog_down">▼ Вниз</button>
+        <button class="btn btn-primary btn-xl" id="jog-up-btn">▲ Вверх</button>
+        <button class="btn btn-primary btn-xl" id="jog-down-btn">▼ Вниз</button>
+      </div>
+      <small class="hint">Короткое нажатие — сдвиг на фикс. расстояние; удержание — движение, пока держишь.</small>
+      <div class="set-row">
+        <label>Расстояние за нажатие, см <small class="steps-info" id="jogsteps-info"></small></label>
+        <input type="number" id="set-jogsteps" step="0.1" min="0" inputmode="decimal">
       </div>
       <div class="set-row">
-        <label>Шагов за нажатие</label>
-        <input type="number" id="set-jogsteps" step="10" min="1" max="100000" inputmode="numeric">
+        <label>Скорость, см/с <small class="steps-info" id="jogspeed-info"></small></label>
+        <input type="number" id="set-jogspeed" step="0.05" min="0" inputmode="decimal">
       </div>
-      <div class="set-row">
-        <label>Скорость, шаг/с (50–15000)</label>
-        <input type="number" id="set-jogspeed" step="50" min="50" max="15000" inputmode="numeric">
-      </div>
-      <button class="btn btn-ghost btn-xl" data-cmd="debug_back">← Назад (в парковку)</button>
+      <button class="btn btn-ghost btn-xl" data-cmd="debug_back">← Выход из ручного режима</button>
     </section>
 
     <!-- ── CALIBRATING: замер полного хода дом→конец ────────────────────── -->
@@ -113,7 +116,6 @@
         </div>
       </div>
       <button class="btn btn-primary btn-xl" data-cmd="start_charging">Старт зарядки</button>
-      <button class="btn btn-ghost btn-xl" data-cmd="debug">🔧 Отладка (тест механики)</button>
     </section>
 
     <!-- ── CHARGING ─────────────────────────────────────────────────────── -->
@@ -190,12 +192,14 @@
           <input type="number" id="set-pitch" step="0.5" min="0.5" max="20" inputmode="decimal">
         </div>
         <div class="set-row">
-          <label>Скорость парковки, шаг/с (50–15000) <button class="help-btn" data-help="parkSpeed">?</button></label>
-          <input type="number" id="set-parkspeed" step="50" min="50" max="15000" inputmode="numeric">
+          <label>Скорость парковки, см/с <button class="help-btn" data-help="parkSpeed">?</button>
+            <small class="steps-info" id="parkspeed-info"></small></label>
+          <input type="number" id="set-parkspeed" step="0.05" min="0" inputmode="decimal">
         </div>
         <div class="set-row">
-          <label>Скорость зарядки, шаг/с (50–15000) <button class="help-btn" data-help="chargeSpeed">?</button></label>
-          <input type="number" id="set-chargespeed" step="50" min="50" max="15000" inputmode="numeric">
+          <label>Скорость зарядки, см/с <button class="help-btn" data-help="chargeSpeed">?</button>
+            <small class="steps-info" id="chargespeed-info"></small></label>
+          <input type="number" id="set-chargespeed" step="0.05" min="0" inputmode="decimal">
         </div>
 
         <div class="presets" id="presets-block">
@@ -225,10 +229,11 @@
         </div>
         <button class="btn btn-primary btn-xl" data-cmd="calibrate">⚙ Калибровать ход</button>
         <div class="set-row">
-          <label>Полный ход H, шагов <button class="help-btn" data-help="fullPathSteps">?</button></label>
-          <input type="number" id="set-H" step="1" min="0" max="5000000" inputmode="numeric">
+          <label>Полный ход H, см <button class="help-btn" data-help="fullPathSteps">?</button>
+            <small class="steps-info" id="H-info"></small></label>
+          <input type="number" id="set-H" step="0.1" min="0" inputmode="decimal">
         </div>
-        <small class="hint">H задаётся калибровкой. Правь вручную только если знаешь значение.</small>
+        <small class="hint">H задаётся калибровкой (в см). Правь вручную только если знаешь значение.</small>
       </div>
     </details>
   </main>

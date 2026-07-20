@@ -36,6 +36,19 @@ void StateMachine::jog(int dir) {
     m_stepper->moveTo(m_stepper->currentPosition() + step, g_state.jogSpeed);
 }
 
+// Отладка: непрерывное движение по удержанию (большой ход; jogStop остановит).
+void StateMachine::jogHold(int dir) {
+    if (g_state.screen != Screen::DEBUG || !m_stepper) return;
+    int32_t far = (dir < 0) ? -5000000 : 5000000;
+    m_stepper->enable();
+    m_stepper->moveTo(m_stepper->currentPosition() + far, g_state.jogSpeed);
+}
+
+// Отладка: остановить движение (отпустили кнопку).
+void StateMachine::jogStop() {
+    if (g_state.screen == Screen::DEBUG && m_stepper) m_stepper->stop();
+}
+
 // Двухфазная кнопка (физическая D3 и глоб. кнопка UI): СТОП → (после стопа) Парковка.
 void StateMachine::stopButtonPress() {
     if (g_state.screen == Screen::STOPPED) {
