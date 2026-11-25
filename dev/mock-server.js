@@ -52,29 +52,56 @@ const state = {
   switches: { top: false, a: false, b: false, bot: false },
   rawSwitches: { top: false, a: false, b: false, bot: false },
   dosing: { elapsedSec: 0, totalSec: 0, progress: 0, volumeA: 0, volumeB: 0 },
+  planVolA: 0,
+  planVolB: 0,
 };
+
+// Демо сбоя: MOCK_BOT_AT=0.85 — BOT срабатывает на 85 % хода дозы (план/факт).
+const BOT_AT = Number(process.env.MOCK_BOT_AT) || 0;
+let dosingStartPos = 0;
 
 let screenEnterMs = Date.now();
 let dosingStartMs = 0;
 
 // ── Расчёты (порт src/app/Calculations.cpp) ─────────────────────────────────
+// Константы — из include/config.h.
 const PI = 3.14159265;
+const FULL_STEPS_PER_REV = 200 * 16;
+const MAX_FLOW_MLPM = 3000;
+const MOTOR_SPS_MAX = 6400;
+const DOSE_SPS_MIN = 1;
+const DOSE_TIME_MAX_MIN = 20;
+const CHARGE_AT = 0.3;      // демо: заряд (2) — на 30 % хода H
+
 const area = (d) => PI * (d / 2) * (d / 2);
 const volOf = (s) => (state.presets[s.presetIdx] ? state.presets[s.presetIdx].vol : 0);
-const flowA = () => (state.doseTimeMin > 0 ? volOf(state.syringeA) / state.doseTimeMin : 0);
+const stepsToMm = (steps) => steps * state.screwPitch / FULL_STEPS_PER_REV;
+const distToVol = (diam, mm) => area(diam) * mm / 1000;
+
+// Объём дозы: в CHARGED — по оставшемуся ходу H − L, в DOSING/DONE — план, иначе пресет.
+function doseVol(s, plan) {
+  if (state.screen === 'CHARGED' && state.fullPathSteps > state.motorPos)
+    return distToVol(s.diameter, stepsToMm(state.fullPathSteps - state.motorPos));
+  if ((state.screen === 'DOSING' || state.screen === 'DONE') && plan > 0) return plan;
+  return volOf(s);
+}
+const doseVolA = () => doseVol(state.syringeA, state.planVolA);
+const doseVolB = () => doseVol(state.syringeB, state.planVolB);
+const flowA = () => (state.doseTimeMin > 0 ? doseVolA() / state.doseTimeMin : 0);
 const screwSpeed = () => { const sA = area(state.syringeA.diameter); return sA > 0 ? flowA() * 1000 / sA : 0; };
 const flowB = () => screwSpeed() * area(state.syringeB.diameter) / 1000;
 
 // Физически допустимый диапазон времени дозирования (порт calc::timeRangeMin).
 function timeRange() {
-  const vA = volOf(state.syringeA);
+  const vA = doseVolA();
   if (vA <= 0) return { min: 0, max: 0 };
-  let tMin = vA / 3000;   // MAX_FLOW_MLPM
-  let tMax = vA / 0.33;   // MIN_FLOW_MLPM
+  let tMin = vA / MAX_FLOW_MLPM;
+  let tMax = DOSE_TIME_MAX_MIN;
   const sA = area(state.syringeA.diameter);
   if (sA > 0 && state.screwPitch > 0) {
-    tMin = Math.max(tMin, vA * 1000 / (300 * sA * state.screwPitch));  // MOTOR_RPM_MAX
-    tMax = Math.min(tMax, vA * 1000 / (1 * sA * state.screwPitch));    // MOTOR_RPM_MIN
+    const steps = vA * 1000 / sA / state.screwPitch * FULL_STEPS_PER_REV;
+    tMin = Math.max(tMin, steps / MOTOR_SPS_MAX / 60);
+    tMax = Math.min(tMax, steps / DOSE_SPS_MIN / 60);
   }
   if (tMin > tMax) tMin = tMax;
   return { min: tMin, max: tMax };
@@ -103,8 +130,10 @@ function buildState() {
       flowB: flowB(),
       timeMin: timeRange().min,
       timeMax: timeRange().max,
-      planVolA: volOf(state.syringeA),   // демо-план (в прошивке — по расстоянию L2)
-      planVolB: volOf(state.syringeB),
+      planVolA: state.planVolA,
+      planVolB: state.planVolB,
+      doseVolA: doseVolA(),
+      doseVolB: doseVolB(),
     },
     switches: state.switches,
     rawSwitches: state.rawSwitches,
@@ -133,16 +162,25 @@ function transitionTo(next) {
       break;
     case 'CHARGED':
       state.switches.a = true; state.switches.b = true;
+      state.motorPos = Math.round(state.fullPathSteps * CHARGE_AT);
       break;
-    case 'DOSING':
+    case 'DOSING': {
       state.dosing = { elapsedSec: 0, totalSec: state.doseTimeMin * 60, progress: 0, volumeA: 0, volumeB: 0 };
       dosingStartMs = Date.now();
+      dosingStartPos = state.motorPos;
+      const l2mm = stepsToMm(state.fullPathSteps - state.motorPos);
+      state.planVolA = distToVol(state.syringeA.diameter, l2mm);
+      state.planVolB = distToVol(state.syringeB.diameter, l2mm);
       break;
+    }
     case 'DONE':
       state.switches.bot = (state.doneReason === 'bot');   // bot true только если реально сработал
       break;
     case 'PARKING':
       state.switches = { top: false, a: false, b: false, bot: false };
+      break;
+    case 'PARKED':
+      state.motorPos = 0;
       break;
   }
   // rawSwitches в моке = текущее сценарное состояние (чтобы панель мигала по циклу)
@@ -172,16 +210,19 @@ function tick() {
       if (state.switches.a && state.switches.b) { transitionTo('CHARGED'); return; }
       break;
     case 'DOSING': {
-      const simElapsed = Math.min(((now - dosingStartMs) / 1000) * TIME_FACTOR, state.dosing.totalSec);
-      state.dosing.elapsedSec = simElapsed;
-      state.dosing.progress = state.dosing.totalSec > 0 ? simElapsed / state.dosing.totalSec : 0;
-      state.dosing.volumeA = volOf(state.syringeA) * state.dosing.progress;
-      state.dosing.volumeB = volOf(state.syringeB) * state.dosing.progress;
+      // Как в прошивке: мотор едет к H со скоростью V = L2 / t, прогресс — по шагам.
+      const L2 = Math.max(1, state.fullPathSteps - dosingStartPos);
+      const speed = Math.min(Math.max(L2 / Math.max(1, state.dosing.totalSec), DOSE_SPS_MIN), MOTOR_SPS_MAX);
+      const simSec = ((now - dosingStartMs) / 1000) * TIME_FACTOR;
+      const traveled = Math.min(L2, Math.round(simSec * speed));
+      state.motorPos = dosingStartPos + traveled;
+      state.dosing.elapsedSec = Math.min(simSec, state.dosing.totalSec);
+      state.dosing.progress = traveled / L2;
+      state.dosing.volumeA = state.planVolA * state.dosing.progress;
+      state.dosing.volumeB = state.planVolB * state.dosing.progress;
       changed = true;
-      // ДЕМО: имитируем срабатывание концевика BOT раньше таймера (на 85%),
-      // чтобы показать план/факт. progress НЕ форсим в 1 — фиксируем факт.
-      if (state.dosing.progress >= 0.85) { state.doneReason = 'bot'; transitionTo('DONE'); return; }
-      if (simElapsed >= state.dosing.totalSec) { state.dosing.progress = 1; state.doneReason = 'timer'; transitionTo('DONE'); return; }
+      if (BOT_AT > 0 && state.dosing.progress >= BOT_AT) { state.doneReason = 'bot'; transitionTo('DONE'); return; }
+      if (traveled >= L2) { state.dosing.progress = 1; state.doneReason = 'timer'; transitionTo('DONE'); return; }
       break;
     }
   }
@@ -235,11 +276,11 @@ function handleDirectSet(field, value) {
   else if (field === 'syringeB.diameter' && inParked) state.syringeB.diameter = clamp(v, 1, 150);
   else if (field === 'screwPitch') state.screwPitch = clamp(v, 0.5, 20);
   else if (field === 'sleepTimeout') state.sleepTimeout = clamp(v, 5, 300) | 0;
-  else if (field === 'parkSpeed') state.parkSpeed = clamp(v, 50, 15000);
-  else if (field === 'chargeSpeed') state.chargeSpeed = clamp(v, 50, 15000);
+  else if (field === 'parkSpeed') state.parkSpeed = clamp(v, 50, 6400);
+  else if (field === 'chargeSpeed') state.chargeSpeed = clamp(v, 50, 6400);
   else if (field === 'fullPathSteps') state.fullPathSteps = clamp(v, 0, 5000000) | 0;
   else if (field === 'jogSteps') state.jogSteps = clamp(v, 1, 100000) | 0;
-  else if (field === 'jogSpeed') state.jogSpeed = clamp(v, 50, 15000);
+  else if (field === 'jogSpeed') state.jogSpeed = clamp(v, 50, 6400);
   broadcast();
 }
 

@@ -11,6 +11,8 @@ public:
     virtual void stop() = 0;
 
     virtual int32_t currentPosition() const = 0;
+    /** Куда едем сейчас (равна currentPosition(), если мотор стоит). */
+    virtual int32_t targetPosition() const = 0;
     virtual bool    isBusy() const = 0;
 
     /** Принять текущую позицию за 0 (после хоуминга по концевику). */

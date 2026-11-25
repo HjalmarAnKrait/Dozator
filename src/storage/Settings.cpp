@@ -43,13 +43,23 @@ bool Settings::load() {
     g_state.jogSteps        = doc["jogSteps"]      | 200;
     g_state.jogSpeed        = doc["jogSpeed"]      | 800.0f;
 
+    // Битый или ручной файл не должен давать нулевые скорости/шаг — поджимаем в те же
+    // диапазоны, что и direct_set.
+    g_state.screwPitch      = constrain(g_state.screwPitch, 0.5f, 20.0f);
+    g_state.sleepTimeoutSec = constrain(g_state.sleepTimeoutSec, (uint16_t)5, (uint16_t)300);
+    g_state.parkSpeed       = constrain(g_state.parkSpeed, MOTOR_SPS_MIN, MOTOR_SPS_MAX);
+    g_state.chargeSpeed     = constrain(g_state.chargeSpeed, MOTOR_SPS_MIN, MOTOR_SPS_MAX);
+    g_state.jogSpeed        = constrain(g_state.jogSpeed, MOTOR_SPS_MIN, MOTOR_SPS_MAX);
+    g_state.jogSteps        = constrain(g_state.jogSteps, (int32_t)1, (int32_t)100000);
+    g_state.fullPathSteps   = constrain(g_state.fullPathSteps, (int32_t)0, (int32_t)5000000);
+
     JsonArray presets = doc["presets"].as<JsonArray>();
     if (presets) {
         g_state.presetsCount = 0;
         for (JsonObject p : presets) {
             if (g_state.presetsCount >= MAX_PRESETS) break;
-            g_state.presets[g_state.presetsCount].vol  = p["vol"]  | 10.0f;
-            g_state.presets[g_state.presetsCount].diam = p["diam"] | 14.5f;
+            g_state.presets[g_state.presetsCount].vol  = constrain(p["vol"]  | 10.0f, 1.0f, 500.0f);
+            g_state.presets[g_state.presetsCount].diam = constrain(p["diam"] | 14.5f, 1.0f, 150.0f);
             g_state.presetsCount++;
         }
         if (g_state.presetsCount == 0) initDefaultPresets(g_state);

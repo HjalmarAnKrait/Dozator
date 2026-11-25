@@ -18,11 +18,16 @@
 {
   "type": "state",
   "screen": "PARKED",
+  "cursor": 0,
+  "editing": false,
   "settings": {
-    "screwPitch": 2.0,
+    "screwPitch": 8.0,
     "sleepTimeout": 15,
     "parkSpeed": 800,
     "chargeSpeed": 400,
+    "fullPathSteps": 120000,
+    "jogSteps": 200,
+    "jogSpeed": 800,
     "presets": [
       {"vol": 10, "diam": 14.5},
       {"vol": 20, "diam": 19.0},
@@ -34,14 +39,25 @@
     "syringeB": {"presetIdx": 2, "diameter": 28.6, "volume": 50},
     "doseTimeMin": 2.0,
     "flowA": 10.0,
-    "flowB": 22.6,
-    "timeMin": 0.12,
-    "timeMax": 3.53
+    "flowB": 22.66,
+    "planVolA": 0,
+    "planVolB": 0,
+    "doseVolA": 20,
+    "doseVolB": 50,
+    "timeMin": 0.073,
+    "timeMax": 20
   },
   "switches":    {"top": true, "a": false, "b": false, "bot": false},
   "rawSwitches": {"top": true, "a": false, "b": false, "bot": false},
   "dosing": {
-    "elapsedSec": 0, "totalSec": 0, "progress": 0, "volumeA": 0, "volumeB": 0
+    "elapsedSec": 0, "totalSec": 0, "progress": 0, "volumeA": 0, "volumeB": 0,
+    "reason": "timer"
+  },
+  "ui": {
+    "displaySleeping": false, "editingPresetIdx": -1,
+    "remoteOnline": true, "remoteFw": "0.3.0", "remoteProto": 0, "proto": 5,
+    "fw": "1.1.0", "ota": false, "calibPhase": 0, "motorPos": 0,
+    "stopCause": "manual", "breadcrumb": []
   }
 }
 ```
@@ -51,6 +67,14 @@
 - **`rawSwitches` — живые показания концевиков** (`ILimitSwitches::read()`),
   обновляются при любом изменении. Использовать для постоянной отладочной
   индикации в UI, независимо от экрана.
+- `cycle.doseVolA` / `cycle.doseVolB` — объём дозы, мл: в CHARGED по оставшемуся
+  ходу H − L, в DOSING/DONE плановый, иначе полный объём пресета. `flowA/flowB`
+  и диапазон времени считаются от него.
+- `cycle.timeMin/timeMax` — допустимое время дозы, мин: снизу — скорость мотора
+  6400 шаг/с, сверху — 20 мин (и не медленнее 1 шаг/с). Пример — 20 мл при Tr8x8.
+- `ui.remoteOnline` — выносной пульт на связи (присылал HELLO последние 3 с).
+- `ui.stopCause`: `manual · stuck_home · stuck_charge · stuck_end · calib_fail ·
+  bad_charge` (заряд ниже H — дозировать нечего).
 - `cycle.timeMin` / `cycle.timeMax` — физически допустимый диапазон времени
   дозирования (мин) под текущие объём/диаметр/шаг (пределы потока и оборотов
   мотора). UI валидирует `doseTimeMin` по нему.
@@ -96,10 +120,23 @@
 | `syringeB.presetIdx` / `syringeB.diameter` | PARKED |
 | `screwPitch` | любой |
 | `sleepTimeout` | любой |
-| `parkSpeed` (шаг/с, 50–15000) | любой |
-| `chargeSpeed` (шаг/с, 50–15000) | любой |
+| `parkSpeed` (шаг/с, 50–6400) | любой |
+| `chargeSpeed` (шаг/с, 50–6400) | любой |
 
 Если поле недопустимо для текущего экрана — сервер ответит `{"type":"error"}`.
+Правка значения не перезапускает текущее состояние: сервер только рассылает новое `state`.
+
+### Ручной режим (DEBUG)
+
+| Команда | Действие |
+|---------|----------|
+| `debug` / `debug_back` | войти (из любого экрана) / выйти в IDLE |
+| `jog_up` / `jog_down` | сдвиг на `jogSteps` |
+| `jog_hold_up` / `jog_hold_down` | движение до `jog_stop`; **клиент повторяет команду каждые 300 мс**, без повтора дольше 1 с мотор встаёт сам |
+| `jog_stop` | стоп |
+
+Концевик TOP останавливает движение вверх, BOT — вниз. Отключение WebSocket-клиента
+останавливает движение.
 
 ### `set_preset` – редактирование пресета шприца
 

@@ -5,3 +5,9 @@
 .vscode/ipch
 
 dev/node_modules
+
+# версия, release-файлы и вшитый веб-интерфейс генерируются при сборке
+include/fw_version_gen.h
+remote/firmware/include/fw_version_gen.h
+src/net/web_assets_gen.h
+release/

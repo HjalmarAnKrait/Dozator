@@ -1,0 +1,1121 @@
+<title>Пульт дозатора</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: рабочий стол — слева сам пульт (OLED + энкодер), справа модель дозатора и эфир ESP-NOW, ниже карта меню */
+:root {
+  --bg: #eceeea;
+  --surface: #f8f9f6;
+  --ink: #1d2320;
+  --muted: #5b6661;
+  --line: #d2d8d3;
+  --accent: #0d7463;
+  --accent-ink: #ffffff;
+  --warn: #b0501c;
+  --ok: #2c7a35;
+  --chip: #e1e6e1;
+  --enc: #1b1f22;
+  --enc-edge: #343b40;
+  --enc-ink: #c9d1d4;
+  --oled-off: #0a1014;
+  --oled-bg: #030506;
+  --font-ui: "Golos Text", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111513; --surface: #181d1b; --ink: #e2e8e4; --muted: #94a09a; --line: #2a322f;
+    --accent: #3fbfa6; --accent-ink: #052019; --warn: #e88b52; --ok: #6cc073; --chip: #222a27;
+    --enc: #0d1012; --enc-edge: #2b3236; --enc-ink: #c9d1d4; --oled-off: #0a1014; --oled-bg: #030506;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111513; --surface: #181d1b; --ink: #e2e8e4; --muted: #94a09a; --line: #2a322f;
+  --accent: #3fbfa6; --accent-ink: #052019; --warn: #e88b52; --ok: #6cc073; --chip: #222a27;
+  --enc: #0d1012; --enc-edge: #2b3236; --enc-ink: #c9d1d4; --oled-off: #0a1014; --oled-bg: #030506;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 28px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 28px; }
+h1 { font-size: 28px; line-height: 1.15; margin: 0 0 6px; letter-spacing: -0.01em; text-wrap: balance; }
+h2 { font-size: 17px; margin: 0; text-wrap: balance; }
+.lead { margin: 0; color: var(--muted); max-width: 68ch; }
+.grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+@media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: grid; gap: 14px; min-width: 0; }
+.label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
+
+/* ── сам пульт ── */
+.remote { background: var(--enc); border: 2px solid var(--enc-edge); border-radius: 16px; padding: 18px; display: flex; gap: 18px; align-items: center; flex-wrap: wrap; justify-content: center; }
+.oled-frame { flex: 1 1 340px; min-width: 0; max-width: 460px; background: #000; padding: 10px; border-radius: 6px; box-shadow: inset 0 0 0 1px #2a3034; }
+#oled { display: block; width: 100%; height: auto; aspect-ratio: 2 / 1; image-rendering: pixelated; cursor: ns-resize; }
+.knob-zone { display: grid; justify-items: center; gap: 6px; }
+.knob { width: 112px; height: 112px; border-radius: 50%; position: relative; touch-action: none; cursor: grab; outline: none;
+  background: repeating-conic-gradient(from 0deg, #2a3035 0deg 6deg, #20262a 6deg 12deg); box-shadow: 0 4px 0 #090b0c, inset 0 0 0 2px #3a4247; }
+.knob:focus-visible { box-shadow: 0 4px 0 #090b0c, inset 0 0 0 2px #3a4247, 0 0 0 3px var(--accent); }
+.knob-cap { position: absolute; inset: 16px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #4b545a, #23292d 70%); box-shadow: inset 0 -2px 4px rgba(0,0,0,.5); transition: transform 80ms; }
+.knob.pressed .knob-cap { transform: scale(0.93); }
+.knob-mark { position: absolute; left: 50%; top: 6px; width: 4px; height: 18px; margin-left: -2px; border-radius: 2px; background: #d8e0e3; }
+.knob-cap-wrap { position: absolute; inset: 0; }
+.pbtns { display: grid; gap: 14px; justify-items: center; }
+.pbtn { width: 46px; height: 46px; border-radius: 50%; border: 2px solid #3a4247; background: radial-gradient(circle at 35% 30%, #4b545a, #23292d 70%); box-shadow: 0 3px 0 #090b0c; cursor: pointer; padding: 0; }
+.pbtn.stop { width: 56px; height: 56px; background: radial-gradient(circle at 35% 30%, #e0584c, #8f2119 70%); border-color: #5a1712; }
+.pbtn:active { transform: translateY(2px); box-shadow: 0 1px 0 #090b0c; }
+.pbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.knob-caption { font-size: 11px; color: var(--enc-ink); letter-spacing: .06em; text-transform: uppercase; opacity: .75; }
+.ctrl { display: flex; flex-wrap: wrap; gap: 8px; }
+[hidden] { display: none !important; }
+button, select { font: inherit; font-size: 14px; }
+.btn { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 8px; padding: 8px 12px; cursor: pointer; }
+.btn:hover { border-color: var(--accent); }
+.btn:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.danger { color: var(--warn); border-color: var(--warn); }
+.keys { font-size: 13px; color: var(--muted); display: grid; gap: 4px; }
+kbd { font-family: var(--font-mono); font-size: 12px; background: var(--chip); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; color: var(--ink); }
+.opts { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: center; font-size: 14px; }
+.opts label { display: inline-flex; gap: 8px; align-items: center; }
+.sleepnote { font-size: 13px; color: var(--muted); min-height: 1.5em; }
+
+/* ── модель дозатора ── */
+.simtop { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.chip { font-family: var(--font-mono); font-size: 13px; padding: 3px 10px; border-radius: 99px; background: var(--chip); border: 1px solid var(--line); }
+.chip.move { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.chip.stop { color: var(--warn); border-color: var(--warn); }
+.mech { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 420px) { .mech { grid-template-columns: 110px minmax(0, 1fr); } }
+.mech svg { width: 100%; height: auto; display: block; }
+.readout { display: grid; gap: 8px; font-size: 14px; min-width: 0; }
+.row { display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px dashed var(--line); padding-bottom: 4px; }
+.row b { font-family: var(--font-mono); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sws { display: flex; gap: 6px; flex-wrap: wrap; }
+.sw { font-family: var(--font-mono); font-size: 12px; padding: 2px 8px; border-radius: 4px; border: 1px solid var(--line); color: var(--muted); }
+.sw.on { background: var(--ok); border-color: var(--ok); color: var(--accent-ink); }
+.toggles { display: grid; gap: 8px; font-size: 14px; }
+.toggles label { display: flex; gap: 8px; align-items: center; }
+.log { font-family: var(--font-mono); font-size: 12px; background: var(--chip); border-radius: 8px; padding: 10px 12px; min-height: 150px; display: grid; align-content: start; gap: 2px; overflow-x: auto; }
+.log .fail { color: var(--warn); }
+.log .rx { color: var(--accent); }
+.log .t { color: var(--muted); margin-right: 8px; }
+
+/* ── карта меню ── */
+.map { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
+.card { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; background: var(--surface); min-width: 0; }
+.card h3 { margin: 0 0 6px; font-size: 13px; font-family: var(--font-mono); letter-spacing: .02em; }
+.card ul { margin: 0; padding-left: 18px; font-size: 14px; display: grid; gap: 2px; }
+.card p { margin: 0; font-size: 14px; color: var(--muted); }
+.rules { display: grid; gap: 6px; font-size: 14px; max-width: 80ch; }
+.rules p { margin: 0; }
+@media (prefers-reduced-motion: reduce) { .knob-cap { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Пульт дозатора</h1>
+    <p class="lead">Кликабельный прототип выносного пульта, прошивка 0.3.0: OLED 0,96″ 128×64 и энкодер с кнопкой, ESP32-C3 SuperMini, связь ESP-NOW. Экран рисуется в реальном разрешении: шапка 16 px и четыре строки по 12 px. Справа модель дозатора: каретка, концевики, шприцы и пакеты в эфире.</p>
+  </header>
+
+  <div class="grid">
+    <section class="panel" aria-label="Пульт">
+      <div class="remote">
+        <div class="oled-frame"><canvas id="oled" width="640" height="320" aria-label="Экран пульта 128 на 64"></canvas></div>
+        <div class="knob-zone">
+          <div id="knob" class="knob" tabindex="0" role="slider" aria-label="Энкодер: крутить и нажимать" aria-valuenow="0">
+            <div class="knob-cap-wrap" id="knob-rot"><div class="knob-cap"><span class="knob-mark"></span></div></div>
+          </div>
+          <span class="knob-caption">энкодер</span>
+        </div>
+        <div class="pbtns">
+          <button class="pbtn stop" id="p-stop" aria-label="Кнопка СТОП: нажать — стоп, удержать 1,5 с — парковка"></button><span class="knob-caption">стоп</span>
+        </div>
+      </div>
+      <div class="ctrl">
+        <button class="btn" id="b-ccw">⟲ Влево</button>
+        <button class="btn" id="b-cw">Вправо ⟳</button>
+        <button class="btn primary" id="b-click">Нажать</button>
+        <button class="btn" id="b-long">Удержать 0,7 с (назад)</button>
+      </div>
+      <div class="ctrl" id="ota-sim" hidden>
+        <button class="btn primary" id="b-ota-up">Загрузить remote-0.3.0.bin с телефона</button>
+        <span class="sleepnote">Пульт в режиме обновления: сеть dozator-ota, кнопка СТОП не работает. Выход — удержание энкодера.</span>
+      </div>
+      <div class="keys">
+        <div>Крутить: тяни ручку по кругу, колесо мыши над экраном или ручкой, <kbd>←</kbd> <kbd>→</kbd>.</div>
+        <div>Точка справа в шапке мигает на каждый пакет от дозатора: мигает — связь в обе стороны живая.</div>
+        <div>Нажать: клик по ручке, <kbd>Enter</kbd> или <kbd>Пробел</kbd>. Удержание дольше 0,7 с — «назад» без сохранения (<kbd>Backspace</kbd>), в ручном режиме — «Выйти из ручного?».</div>
+        <div>Курсор рамкой вместо заливки — идёт защитное окно, клик и поворот сейчас не сработают. Попробуй: дождись конца парковки и сразу нажми.</div>
+        <div><b>СТОП</b> (<kbd>S</kbd>): нажатие — стоп мотора, работает и на погасшем экране, будит пульт из сна. Удержание 1,5 с — парковка: пока держишь, в шапке заполняется полоса.</div>
+      </div>
+      <div class="opts">
+        <label>Цвет OLED
+          <select id="oled-color">
+            <option value="#e8f4ff">белый</option>
+            <option value="#57c4ff">голубой</option>
+            <option value="duo">жёлто-синий</option>
+          </select>
+        </label>
+        <label>Аккумулятор <input type="range" id="batt" min="0" max="100" value="82"> <span id="batt-v">82%</span></label>
+      </div>
+      <div class="sleepnote" id="sleepnote"></div>
+    </section>
+
+    <section class="panel" aria-label="Модель дозатора">
+      <div class="simtop">
+        <h2>Дозатор (модель)</h2>
+        <span class="chip" id="chip">IDLE</span>
+      </div>
+      <div class="mech">
+        <svg id="mech" viewBox="0 0 130 270" aria-label="Схема хода каретки">
+          <rect x="35" y="2" width="60" height="18" rx="2" fill="var(--muted)"></rect>
+          <text x="65" y="15" text-anchor="middle" font-size="9" fill="var(--surface)" font-family="var(--font-mono)">мотор</text>
+          <line x1="65" y1="20" x2="65" y2="258" stroke="var(--line)" stroke-width="3"></line>
+          <rect id="m-top" x="4" y="26" width="22" height="8" rx="1" fill="var(--line)"></rect>
+          <text x="15" y="44" text-anchor="middle" font-size="8" fill="var(--muted)" font-family="var(--font-mono)">TOP</text>
+          <rect id="m-bot" x="4" y="252" width="22" height="8" rx="1" fill="var(--line)"></rect>
+          <text x="15" y="248" text-anchor="middle" font-size="8" fill="var(--muted)" font-family="var(--font-mono)">BOT</text>
+          <g id="m-syr">
+            <rect x="34" y="150" width="20" height="108" rx="2" fill="none" stroke="var(--muted)" stroke-width="1.5"></rect>
+            <rect x="80" y="150" width="26" height="108" rx="2" fill="none" stroke="var(--muted)" stroke-width="1.5"></rect>
+            <line id="m-rodA" x1="44" y1="120" x2="44" y2="150" stroke="var(--muted)" stroke-width="2"></line>
+            <line id="m-rodB" x1="93" y1="120" x2="93" y2="150" stroke="var(--muted)" stroke-width="2"></line>
+            <rect id="m-headA" x="36" y="118" width="16" height="5" fill="var(--line)"></rect>
+            <rect id="m-headB" x="83" y="118" width="20" height="5" fill="var(--line)"></rect>
+            <text x="44" y="268" text-anchor="middle" font-size="8" fill="var(--muted)" font-family="var(--font-mono)">A</text>
+            <text x="93" y="268" text-anchor="middle" font-size="8" fill="var(--muted)" font-family="var(--font-mono)">B</text>
+          </g>
+          <rect id="m-car" x="28" y="80" width="84" height="8" rx="2" fill="var(--accent)"></rect>
+        </svg>
+        <div class="readout">
+          <div class="row"><span>Счётчик мотора</span><b id="r-cnt">0</b></div>
+          <div class="row"><span>Реальная позиция</span><b id="r-phys">0</b></div>
+          <div class="row"><span>Ход H</span><b id="r-H">0</b></div>
+          <div class="row"><span>Скорость</span><b id="r-spd">0</b></div>
+          <div class="sws"><span class="sw" id="s-top">TOP</span><span class="sw" id="s-a">A</span><span class="sw" id="s-b">B</span><span class="sw" id="s-bot">BOT</span></div>
+          <div class="toggles">
+            <label><input type="checkbox" id="t-link" checked> Связь ESP-NOW</label>
+            <label><input type="checkbox" id="t-syr" checked> Шприцы стоят</label>
+            <label>Ускорение модели
+              <select id="t-speed"><option value="1">×1</option><option value="10" selected>×10</option><option value="40">×40</option></select>
+            </label>
+          </div>
+          <div class="ctrl">
+            <button class="btn" id="b-newsyr">Новые шприцы</button>
+            <button class="btn danger" id="b-phys">Физ. кнопка СТОП</button>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="label" style="margin-bottom:6px">Эфир ESP-NOW (пульт → дозатор)</div>
+        <div class="log" id="log"></div>
+      </div>
+    </section>
+  </div>
+
+  <section class="panel" aria-label="Карта меню">
+    <h2>Карта меню</h2>
+    <div class="rules">
+      <p>Верхняя строка — состояние дозатора, концевики A B L T (L — нижний, BOT; T — верхний, TOP: нажат — буква, отпущен — точка), справа значки связи и заряда. Ниже четыре строки: сначала подсказка (если есть), потом список действий. Выбранная строка инвертирована, справа полоска прокрутки.</p>
+      <p>Число правится на отдельном экране: крутишь — значение меняется (быстро — шаг ×4 и ×10), нажал — отправлено одним пакетом. Редактор закрывается, когда дозатор подтвердил («СОХРАНЕНО»); при отказе остаётся открытым с набранным значением. Удержание энкодера выходит без сохранения.</p>
+      <p>Защитные окна: клик и поворот не исполняются 0,4 с после смены состояния, 1,5 с после остановки мотора, 0,5 с после пробуждения экрана, 0,8 с после возврата связи, 0,3 с после открытия диалога. Курсор в это время нарисован рамкой.</p>
+      <p>Подтверждение спрашивается перед калибровкой, прерыванием дозы, отменой цикла, сбросом хода H в 0, выходом из ручного режима удержанием и обновлением прошивки. По умолчанию «НЕТ». Диалог закрывается сам, если пропала связь или погас экран.</p>
+      <p>Экран гаснет через 30 с без действий, но не во время движения. Первое касание только будит экран и ничего не нажимает. Пока дозатор на связи, пульт не засыпает глубоко: экран гаснет, радио работает. Если дозатора не видно 2 минуты и пульт никто не трогал, он уходит в глубокий сон, будят кнопки и поворот ручки.</p>
+    </div>
+    <div class="map">
+      <div class="card"><h3>IDLE · ПРОСТОЙ</h3><ul><li>Парковка</li><li>Калибровка хода → подтверждение</li><li>Ручной режим</li><li>Настройки</li><li>Пульт</li></ul></div>
+      <div class="card"><h3>PARKING · CHARGING · CALIBRATING</h3><p>Две строки статуса (что ищем, позиция, концевики A/B) и единственное действие ■ СТОП. Остановить можно и кнопкой СТОП на панели.</p></div>
+      <div class="card"><h3>PARKED · ГОТОВ</h3><ul><li>Старт зарядки</li><li>Шприц A → пресет, диаметр</li><li>Шприц B → пресет, диаметр</li><li>Калибровка хода</li><li>Ручной режим</li><li>Настройки</li><li>Пульт</li></ul></div>
+      <div class="card"><h3>CHARGED · ЗАРЯЖЕНО</h3><ul><li>Строка: плановая доза A/B по ходу H − L, под ней пунктир</li><li>Время дозы М:СС → редактор: сначала минуты, клик — секунды, клик — сохранить</li><li>Пуск</li><li>Отменить цикл → подтверждение → ОСТАНОВЛЕНО</li><li>Пульт</li></ul></div>
+      <div class="card"><h3>DOSING · ДОЗИРОВАНИЕ</h3><p>Крупный секундомер, объёмы A/B, полоса прогресса, процент в шапке, внизу подсказка. Нажатие — «Прервать дозу?» (объём пишется, экран «ПРЕРВАНО»), кнопка СТОП — сразу стоп (экран «ОСТАНОВЛЕНО» с выданным объёмом).</p></div>
+      <div class="card"><h3>DONE · ГОТОВО</h3><ul><li>Причина в шапке: таймер, концевик BOT, прервано</li><li>Новый цикл</li><li>Парковка</li><li>Калибровка хода</li><li>Ручной режим</li><li>Настройки</li><li>Пульт</li></ul></div>
+      <div class="card"><h3>STOPPED · ОСТАНОВЛЕНО</h3><ul><li>Причина: вручную, TOP не найден, A и B не нажались, BOT не найден, брак калибровки, заряд ниже H</li><li>После СТОП во время дозы — сколько вышло</li><li>Парковка</li><li>Ручной режим</li><li>Настройки</li><li>Пульт</li></ul></div>
+      <div class="card"><h3>DEBUG · РУЧНОЙ</h3><p>Крупно позиция в см, шаг в шапке, внизу концевики и подсказка. Щелчок энкодера = сдвиг на один шаг. Нажатие открывает меню: ручной шаг, V ручная, выйти из ручного, пульт. Удержание — «Выйти из ручного?». Мотор останавливает кнопка СТОП.</p></div>
+      <div class="card"><h3>НАСТРОЙКИ (дозатора)</h3><ul><li>Шаг винта, мм</li><li>V парковки и V зарядки, см/с</li><li>Ход H, см (0 → «Сбросить ход H?»)</li><li>Пресеты шприцов → объём, диаметр</li><li>Ручной шаг и V ручная</li></ul></div>
+      <div class="card"><h3>ПУЛЬТ</h3><ul><li>Яркость 1–10, 1 — для работы в темноте</li><li>Сон экрана</li><li>Обновить прошивку → подтверждение → сеть dozator-ota с QR</li><li>Сброс настроек → яркость и сон по умолчанию (на пульте ещё: держать ручку при включении 5 с)</li><li>Справка: батарея, сигнал, ответ, канал, версии</li></ul><p>Строки справки не выделяются, курсор по ним только прокручивает. Есть во всех состояниях, где мотор стоит, и без связи: клик на экране «НЕТ СВЯЗИ».</p></div>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+
+  /* ═════════════ Шрифт 5×7 (заглавные кириллица/латиница, цифры, знаки) ═════════════ */
+  const FONT_SRC = {
+    ' ': '     |     |     |     |     |     |     ',
+    '0': ' ### |#   #|#  ##|# # #|##  #|#   #| ### ', '1': '  #  | ##  |  #  |  #  |  #  |  #  | ### ',
+    '2': ' ### |#   #|    #|   # |  #  | #   |#####', '3': '#####|   # |  #  |   # |    #|#   #| ### ',
+    '4': '   # |  ## | # # |#  # |#####|   # |   # ', '5': '#####|#    |#### |    #|    #|#   #| ### ',
+    '6': '  ## | #   |#    |#### |#   #|#   #| ### ', '7': '#####|    #|   # |  #  | #   | #   | #   ',
+    '8': ' ### |#   #|#   #| ### |#   #|#   #| ### ', '9': ' ### |#   #|#   #| ####|    #|   # | ##  ',
+    'A': ' ### |#   #|#   #|#####|#   #|#   #|#   #', 'B': '#### |#   #|#   #|#### |#   #|#   #|#### ',
+    'C': ' ### |#   #|#    |#    |#    |#   #| ### ', 'D': '#### |#   #|#   #|#   #|#   #|#   #|#### ',
+    'E': '#####|#    |#    |#### |#    |#    |#####', 'F': '#####|#    |#    |#### |#    |#    |#    ',
+    'G': ' ### |#   #|#    |# ###|#   #|#   #| ####', 'H': '#   #|#   #|#   #|#####|#   #|#   #|#   #',
+    'I': ' ### |  #  |  #  |  #  |  #  |  #  | ### ', 'K': '#   #|#  # |# #  |##   |# #  |#  # |#   #',
+    'L': '#    |#    |#    |#    |#    |#    |#####', 'M': '#   #|## ##|# # #|# # #|#   #|#   #|#   #',
+    'N': '#   #|#   #|##  #|# # #|#  ##|#   #|#   #', 'O': ' ### |#   #|#   #|#   #|#   #|#   #| ### ',
+    'P': '#### |#   #|#   #|#### |#    |#    |#    ', 'R': '#### |#   #|#   #|#### |# #  |#  # |#   #',
+    'S': ' ####|#    |#    | ### |    #|    #|#### ', 'T': '#####|  #  |  #  |  #  |  #  |  #  |  #  ',
+    'U': '#   #|#   #|#   #|#   #|#   #|#   #| ### ', 'V': '#   #|#   #|#   #|#   #|#   #| # # |  #  ',
+    'W': '#   #|#   #|#   #|# # #|# # #|# # #| # # ', 'X': '#   #|#   #| # # |  #  | # # |#   #|#   #',
+    'Y': '#   #|#   #| # # |  #  |  #  |  #  |  #  ', 'Z': '#####|    #|   # |  #  | #   |#    |#####',
+    'Б': '#####|#    |#    |#### |#   #|#   #|#### ', 'Г': '#####|#    |#    |#    |#    |#    |#    ',
+    'Д': '  ## | #  #| #  #| #  #| #  #|#####|#   #', 'Ж': '# # #|# # #| ### |  #  | ### |# # #|# # #',
+    'З': ' ### |#   #|    #|  ## |    #|#   #| ### ', 'И': '#   #|#   #|#  ##|# # #|##  #|#   #|#   #',
+    'Й': ' # # |#   #|#  ##|# # #|##  #|#   #|#   #', 'Л': '  ###| #  #| #  #| #  #| #  #| #  #|#   #',
+    'П': '#####|#   #|#   #|#   #|#   #|#   #|#   #', 'У': '#   #|#   #|#   #| ####|    #|#   #| ### ',
+    'Ф': '  #  | ### |# # #|# # #|# # #| ### |  #  ', 'Ц': '#  # |#  # |#  # |#  # |#  # |#####|    #',
+    'Ч': '#   #|#   #|#   #| ####|    #|    #|    #', 'Ш': '#   #|#   #|# # #|# # #|# # #|# # #|#####',
+    'Щ': '# # #|# # #|# # #|# # #|# # #|#####|    #', 'Ъ': '##   | #   | #   | ### | #  #| #  #| ### ',
+    'Ы': '#   #|#   #|#   #|##  #|# # #|# # #|##  #', 'Ь': '#    |#    |#    |#### |#   #|#   #|#### ',
+    'Э': ' ### |#   #|    #|  ###|    #|#   #| ### ', 'Ю': '#  # |# # #|# # #|### #|# # #|# # #|#  # ',
+    'Я': ' ####|#   #|#   #| ####|  # #| #  #|#   #', 'Ё': ' # # |#####|#    |#### |#    |#    |#####',
+    '.': '     |     |     |     |     |     |  #  ', ',': '     |     |     |     |     |  #  | #   ',
+    ':': '     |  #  |     |     |     |  #  |     ', '-': '     |     |     | ### |     |     |     ',
+    '+': '     |  #  |  #  |#####|  #  |  #  |     ', '/': '    #|    #|   # |  #  | #   |#    |#    ',
+    '%': '##   |##  #|   # |  #  | #   |#  ##|   ##', '(': '   # |  #  | #   | #   | #   |  #  |   # ',
+    ')': ' #   |  #  |   # |   # |   # |  #  | #   ', '!': '  #  |  #  |  #  |  #  |  #  |     |  #  ',
+    '?': ' ### |#   #|    #|   # |  #  |     |  #  ', '=': '     |     |#####|     |#####|     |     ',
+    '>': ' #   |  #  |   # |    #|   # |  #  | #   ', '<': '   # |  #  | #   |#    | #   |  #  |   # ',
+    '±': '  #  |  #  |#####|  #  |  #  |     |#####', '×': '     |#   #| # # |  #  | # # |#   #|     ',
+    'Ø': '    #| ### |#  ##|# # #|##  #| ### |#    ', '…': '     |     |     |     |     |     |# # #',
+    '▶': '#    |##   |###  |#### |###  |##   |#    ', '■': '     |#####|#####|#####|#####|#####|     ',
+    '□': '     |#####|#   #|#   #|#   #|#####|     ', '▲': '     |     |  #  | ### |#####|     |     ',
+    '▼': '     |     |#####| ### |  #  |     |     ', '·': '     |     |     |  #  |     |     |     '
+  };
+  const ALIAS = { 'А':'A','В':'B','Е':'E','К':'K','М':'M','Н':'H','О':'O','Р':'P','С':'C','Т':'T','Х':'X' };
+  const GL = {};
+  for (const k in FONT_SRC) GL[k] = FONT_SRC[k].split('|');
+  for (const k in ALIAS) GL[k] = GL[ALIAS[k]];
+
+  /* ═════════════ Кадровый буфер 128×64 ═════════════ */
+  const W = 128, HGT = 64, fb = new Uint8Array(W * HGT);
+  const clear = () => fb.fill(0);
+  const px = (x, y, v) => { if (x >= 0 && y >= 0 && x < W && y < HGT) fb[y * W + x] = v; };
+  function fill(x, y, w, h, v = 1) { for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) px(i, j, v); }
+  function box(x, y, w, h) { for (let i = x; i < x + w; i++) { px(i, y, 1); px(i, y + h - 1, 1); } for (let j = y; j < y + h; j++) { px(x, j, 1); px(x + w - 1, j, 1); } }
+  const tw = (s, sc = 1) => { s = String(s); return s.length ? s.length * 6 * sc - sc : 0; };
+  function txt(x, y, s, inv = false, sc = 1) {
+    s = String(s).toUpperCase();
+    for (const ch of s) {
+      const g = GL[ch] || GL['?'];
+      for (let r = 0; r < 7; r++) for (let c = 0; c < 5; c++) if (g[r][c] === '#') fill(x + c * sc, y + r * sc, sc, sc, inv ? 0 : 1);
+      x += 6 * sc;
+    }
+    return x;
+  }
+  const TALL = [0, 1, 2, 2, 3, 4, 4, 5, 6];          // строки глифа 5×7 → 9 px (шрифт 6×12)
+  function txtR(x, y, s, inv = false) {
+    s = String(s).toUpperCase();
+    for (const ch of s) {
+      const g = GL[ch] || GL['?'];
+      for (let r = 0; r < 9; r++) for (let c = 0; c < 5; c++) if (g[TALL[r]][c] === '#') px(x + c, y + r, inv ? 0 : 1);
+      x += 6;
+    }
+    return x;
+  }
+  const HEADER_H = 16, ROW_H = 12, ROWS = 4, rowTop = (i) => HEADER_H + i * ROW_H;
+  const clip = (s, n) => { s = String(s); return s.length > n ? s.slice(0, Math.max(0, n - 1)) + '…' : s; };
+
+  const cvs = $('oled'), ctx = cvs.getContext('2d');
+  let oledColor = '#e8f4ff';
+  // Яркость 1..10 — грубая модель: на нижних уровнях прошивка ещё и укорачивает предзаряд пикселя.
+  const BRIGHT = [0.03, 0.06, 0.12, 0.22, 0.32, 0.45, 0.58, 0.72, 0.86, 1];
+  function blit() {
+    ctx.fillStyle = '#030506'; ctx.fillRect(0, 0, cvs.width, cvs.height);
+    const k = BRIGHT[(ui.bright || 6) - 1];
+    for (let y = 0; y < HGT; y++) for (let x = 0; x < W; x++) {
+      const on = fb[y * W + x];
+      ctx.globalAlpha = on ? k : 1;
+      ctx.fillStyle = on ? (oledColor === 'duo' ? (y < 16 ? '#ffd84a' : '#57c4ff') : oledColor) : '#0a1014';
+      ctx.fillRect(x * 5, y * 5, 4, 4);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  /* ═════════════ Модель дозатора (логика прошивки + предложенные исправления) ═════════════ */
+  const STEPS_REV = 3200;
+  const dz = {
+    screen: 'IDLE', cnt: 0, phys: 9000, target: 0, speed: 0, moving: false, acc: 0,
+    Hreal: 42000, H: 41960, pitch: 8, parkSpeed: 800, chargeSpeed: 400, jogSteps: 800, jogSpeed: 1600,
+    presets: [{ vol: 10, diam: 14.5 }, { vol: 20, diam: 19.0 }, { vol: 50, diam: 28.6 }],
+    sA: { idx: 1, diam: 19.0 }, sB: { idx: 2, diam: 28.6 }, doseTimeMin: 2.0,
+    doneReason: 'timer', stopCause: 'manual', calibPhase: 0, moveStart: 0, simT: 0,
+    dose: { start: 0, startPos: 0, L2: 1, total: 0, elapsed: 0, progress: 0, vA: 0, vB: 0 }, planA: 0, planB: 0,
+    sw: { top: false, a: false, b: false, bot: false }, syringes: true, cA: 18000, cB: 18600
+  };
+  const spc = () => STEPS_REV / dz.pitch * 10;              // шагов на 1 см
+  const cm = (steps, d = 2) => (steps / spc()).toFixed(d);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const area = (d) => Math.PI * (d / 2) ** 2;
+  function planVols() { const mm = (dz.H - dz.cnt) * dz.pitch / STEPS_REV; return [area(dz.sA.diam) * mm / 1000, area(dz.sB.diam) * mm / 1000]; }
+  function moveTo(t, s) { dz.target = Math.round(t); dz.speed = Math.max(1, s); dz.moving = dz.target !== dz.cnt; }
+  function stopM() { dz.target = dz.cnt; dz.moving = false; }
+  const MOVING_SCREENS = ['PARKING', 'CHARGING', 'DOSING', 'CALIBRATING'];
+  const isMoving = () => dz.moving || MOVING_SCREENS.includes(dz.screen);
+
+  function readSw() {
+    dz.sw.top = dz.phys <= 0;
+    dz.sw.bot = dz.phys >= dz.Hreal;
+    dz.sw.a = dz.syringes && dz.phys >= dz.cA;
+    dz.sw.b = dz.syringes && dz.phys >= dz.cB;
+  }
+  function physTick(dt) {
+    if (!dz.moving) return;
+    dz.acc += dz.speed * dt;
+    let k = Math.floor(dz.acc); dz.acc -= k;
+    if (!k) return;
+    const dir = Math.sign(dz.target - dz.cnt);
+    k = Math.min(k, Math.abs(dz.target - dz.cnt));
+    dz.cnt += dir * k;
+    dz.phys = clamp(dz.phys + dir * k, -150, dz.Hreal + 150);     // упоры механики: мотор пропускает шаги
+    if (dz.syringes) { if (dz.phys > dz.cA) dz.cA = dz.phys; if (dz.phys > dz.cB) dz.cB = dz.phys; }   // каретка давит штоки
+    if (dz.cnt === dz.target) dz.moving = false;
+  }
+  function stuck() {
+    const lim = Math.max(dz.H, 40000) * 1.3 / Math.max(1, dz.speed) + 5;   // таймаут от хода и скорости
+    return (dz.simT - dz.moveStart) > lim || !dz.moving;
+  }
+  function toStopped(cause) { dz.stopCause = cause; go('STOPPED'); }
+
+  function go(next) {
+    dz.screen = next; dz.moveStart = dz.simT;
+    switch (next) {
+      case 'IDLE': case 'PARKED': case 'CHARGED': case 'DONE': case 'STOPPED': case 'DEBUG': stopM(); break;
+      case 'PARKING': if (dz.sw.top) stopM(); else moveTo(dz.cnt - Math.max(dz.H, 40000) * 1.5, dz.parkSpeed); break;
+      case 'CHARGING': moveTo(dz.H, dz.chargeSpeed); break;            // исправление: не дальше H
+      case 'DOSING': {
+        const L = dz.cnt, L2 = dz.H - L;
+        if (L2 <= 0) { toStopped('bad_charge'); return; }              // исправление: заряд ниже H
+        [dz.planA, dz.planB] = planVols();
+        const total = dz.doseTimeMin * 60;
+        dz.dose = { start: dz.simT, startPos: L, L2, total, elapsed: 0, progress: 0, vA: 0, vB: 0 };
+        moveTo(dz.H, clamp(L2 / total, 1, 15000));
+        break;
+      }
+      case 'CALIBRATING':
+        dz.calibPhase = 0;
+        if (dz.sw.top) { dz.cnt = 0; dz.calibPhase = 1; moveTo(5e6, dz.parkSpeed); }
+        else moveTo(dz.cnt - 5e6, dz.parkSpeed);
+        break;
+    }
+  }
+
+  function logic(dt) {
+    dz.simT += dt;
+    const s = dz.sw;
+    switch (dz.screen) {
+      case 'PARKING':
+        if (s.top) { stopM(); dz.cnt = 0; dz.target = 0; go('PARKED'); }
+        else if (stuck()) toStopped('stuck_home');
+        break;
+      case 'CHARGING':
+        if (s.a && s.b) go('CHARGED');
+        else if (s.bot || stuck()) toStopped('stuck_charge');             // исправление: BOT при зарядке = сбой
+        break;
+      case 'DOSING': {
+        const d = dz.dose;
+        d.elapsed = Math.min(dz.simT - d.start, d.total);
+        const trav = dz.cnt - d.startPos;
+        let p = clamp(trav / Math.max(1, d.L2), 0, 1);
+        const byBot = s.bot, byDone = trav >= d.L2 || !dz.moving;
+        if (byBot || byDone) {
+          if (!byBot) p = 1;
+          dz.doneReason = byBot ? 'bot' : 'timer';
+          d.progress = p; d.vA = dz.planA * p; d.vB = dz.planB * p;
+          go('DONE');
+        } else { d.progress = p; d.vA = dz.planA * p; d.vB = dz.planB * p; }
+        break;
+      }
+      case 'CALIBRATING':
+        if (dz.calibPhase === 0) {
+          if (s.top) { dz.cnt = 0; dz.calibPhase = 1; moveTo(5e6, dz.parkSpeed); dz.moveStart = dz.simT; }
+          else if (stuck()) toStopped('stuck_home');
+        } else if (s.bot) {
+          const H = dz.cnt - 40;                                            // небольшой отступ от точки BOT
+          stopM();
+          if (H < 500) { toStopped('calib_fail'); return; }
+          dz.H = H; go('IDLE'); remoteEvent('H = ' + cm(H) + ' СМ');
+        } else if (stuck()) toStopped('stuck_end');
+        break;
+      case 'DEBUG':                                                         // исправление: концевик в сторону хода = стоп
+        if (dz.moving) { const dir = Math.sign(dz.target - dz.cnt); if ((dir < 0 && s.top) || (dir > 0 && s.bot)) stopM(); }
+        break;
+    }
+  }
+
+  function dzCommand(a) {
+    const s = dz.screen;
+    if (a === 'stop') { toStopped('manual'); return true; }
+    if (a === 'home') { stopM(); if (s !== 'PARKING') go('PARKING'); return true; }   // удержание СТОП
+    if (a === 'park' && ['IDLE', 'DONE', 'STOPPED'].includes(s)) go('PARKING');
+    else if (a === 'calibrate' && ['IDLE', 'DONE', 'PARKED'].includes(s)) go('CALIBRATING');
+    else if (a === 'start_charging' && s === 'PARKED' && dz.H > 0) go('CHARGING');
+    else if (a === 'pusk' && s === 'CHARGED' && dz.H > 0) go('DOSING');
+    else if (a === 'abort' && s === 'DOSING') { dz.doneReason = 'abort'; go('DONE'); }
+    else if (a === 'new_cycle' && s === 'DONE') { dz.cA = 18000; dz.cB = 18600; go('IDLE'); }
+    else if (a === 'debug' && s !== 'DEBUG') go('DEBUG');
+    else if (a === 'debug_back' && s === 'DEBUG') go('IDLE');
+    else if (a === 'jog_stop' && s === 'DEBUG') stopM();
+    else return false;
+    return true;
+  }
+  function dzSet(f, v) {
+    const s = dz.screen;
+    switch (f) {
+      case 'doseTimeMin': if (s !== 'CHARGED') return false; dz.doseTimeMin = clamp(v, 0.3, 20); return true;
+      case 'syringeA.presetIdx': if (s !== 'PARKED' || !dz.presets[v]) return false; dz.sA.idx = v; dz.sA.diam = dz.presets[v].diam; return true;
+      case 'syringeB.presetIdx': if (s !== 'PARKED' || !dz.presets[v]) return false; dz.sB.idx = v; dz.sB.diam = dz.presets[v].diam; return true;
+      case 'syringeA.diameter': if (s !== 'PARKED') return false; dz.sA.diam = clamp(v, 1, 150); return true;
+      case 'syringeB.diameter': if (s !== 'PARKED') return false; dz.sB.diam = clamp(v, 1, 150); return true;
+      case 'screwPitch': dz.pitch = clamp(v, 0.5, 20); return true;
+      case 'parkSpeed': dz.parkSpeed = clamp(v, 50, 15000); return true;
+      case 'chargeSpeed': dz.chargeSpeed = clamp(v, 50, 15000); return true;
+      case 'fullPathSteps': dz.H = Math.round(clamp(v, 0, 5e6)); return true;
+      case 'jogSteps': dz.jogSteps = Math.round(clamp(v, 1, 1e5)); return true;
+      case 'jogSpeed': dz.jogSpeed = clamp(v, 50, 15000); return true;
+    }
+    return false;
+  }
+  function dzHandle(kind, p) {
+    let ok = true;
+    if (kind === 'CMD') ok = dzCommand(p.a);
+    else if (kind === 'SET') ok = dzSet(p.f, p.v);
+    else if (kind === 'PRESET') {
+      const pr = dz.presets[p.i]; if (!pr) ok = false;
+      else { pr.vol = clamp(p.vol, 1, 500); pr.diam = clamp(p.diam, 1, 150);
+        if (dz.sA.idx === p.i) dz.sA.diam = pr.diam; if (dz.sB.idx === p.i) dz.sB.diam = pr.diam; }
+    } else if (kind === 'JOG') {
+      if (dz.screen !== 'DEBUG') ok = false;
+      else { const base = dz.moving ? dz.target : dz.cnt; moveTo(base + p.steps, dz.jogSpeed); }
+    }
+    if (!ok) log('← ACK: отклонено в ' + dz.screen, 'fail');
+    return ok;
+  }
+
+  /* ═════════════ Эфир ═════════════ */
+  const logEl = $('log'); const logLines = [];
+  function log(msg, cls = '') {
+    const t = new Date(); const ts = t.toTimeString().slice(0, 8);
+    logLines.unshift({ ts, msg, cls }); if (logLines.length > 9) logLines.pop();
+    logEl.innerHTML = '';
+    const head = document.createElement('div'); head.className = 'rx';
+    head.textContent = ui.radio ? '← STATE 64 Б · 10 Гц при движении, 2 Гц в покое' : '← нет пакетов STATE';
+    logEl.appendChild(head);
+    for (const l of logLines) {
+      const d = document.createElement('div'); if (l.cls) d.className = l.cls;
+      const s = document.createElement('span'); s.className = 't'; s.textContent = l.ts;
+      d.appendChild(s); d.appendChild(document.createTextNode(l.msg)); logEl.appendChild(d);
+    }
+  }
+  function send(kind, p) {
+    const bytes = { CMD: 3, SET: 7, PRESET: 11, JOG: 6 }[kind];
+    const desc = kind === 'CMD' ? 'CMD ' + p.a : kind === 'SET' ? 'SET ' + p.f + ' = ' + (+p.v.toFixed(3))
+      : kind === 'PRESET' ? `PRESET #${p.i + 1} ${p.vol} мл Ø${p.diam}` : 'JOG ' + (p.steps > 0 ? '+' : '') + p.steps;
+    const cb = ui.ackCb; ui.ackCb = null;                             // ждёт ACK именно этой команды
+    if (!ui.radio) { log('✕ ' + desc + ' — нет ACK', 'fail'); toast('НЕТ ОТВЕТА', TOAST_LONG); if (cb) cb(false, 'НЕТ ОТВЕТА'); return; }
+    log('→ ' + desc + ' · ' + bytes + ' Б');
+    // СТОП и парковка сбрасывают очередь: настройка, ждавшая ACK, могла не дойти.
+    if (kind === 'CMD' && (p.a === 'stop' || p.a === 'home' || p.a === 'jog_stop') && ui.pendingSave) {
+      const f = ui.pendingSave; ui.pendingSave = null; f(false, 'НЕ ПОДТВЕРЖДЕНО');
+    }
+    if (cb) ui.pendingSave = cb;
+    setTimeout(() => {
+      const ok = dzHandle(kind, p);
+      if (cb && ui.pendingSave === cb) { ui.pendingSave = null; cb(ok, ok ? '' : 'НЕЛЬЗЯ СЕЙЧАС'); }
+      else if (!ok && !cb) toast('НЕЛЬЗЯ СЕЙЧАС', TOAST_LONG);
+    }, cb ? 260 : 12);
+  }
+  function remoteEvent(msg) { if (ui.radio) toast(msg, 1600); }
+
+  /* ═════════════ Пульт: интерфейс ═════════════ */
+  const ui = { stack: [], screen: null, toast: null, lastInput: performance.now(), off: false, offAt: 0, deep: false,
+    radio: true, lastRx: performance.now(), lastLink: performance.now(), sleepSec: 30, bright: 6, batt: 0.82, wasLost: false, stopDown: 0, parkFired: true,
+    guardUntil: 0, wasOnline: true, fromDosing: false, ackCb: null, pendingSave: null, ota: null };
+  // Защитные окна прошивки 0.3.0 (remote_config.h): клик и поворот в это время не исполняются.
+  const SCREEN_GUARD = 400, MOVE_END_GUARD = 1500, WAKE_GUARD = 500, LINK_GUARD = 800, CONFIRM_GUARD = 300;
+  const TOAST_SHORT = 800, TOAST_LONG = 1500;
+  const guard = (ms) => { ui.guardUntil = Math.max(ui.guardUntil, performance.now() + ms); };
+  const guarded = (now) => now < ui.guardUntil;
+  const online = (now) => !ui.ota && (now - ui.lastRx) < 1000;
+  function wake(now) { if (ui.off) guard(WAKE_GUARD); ui.off = false; ui.lastInput = now; }
+  const homeV = () => ({ type: 'home', cursor: 0, scroll: 0 });
+  const menuV = (build, cursor = 0) => ({ type: 'menu', build, cursor, scroll: 0 });
+  const push = (v) => ui.stack.push(v);
+  const pop = () => { if (ui.stack.length > 1) ui.stack.pop(); };
+  const topV = () => ui.stack[ui.stack.length - 1];
+  const it = (label, value, act) => ({ label, value, act });
+  function toast(text, ms = TOAST_SHORT) { ui.toast = { text, until: performance.now() + ms }; }
+  const presetLbl = (i) => { const p = dz.presets[i]; return p ? p.vol + 'МЛ' : '—'; };
+  const mmss = (sec) => { sec = Math.max(0, Math.floor(sec)); return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); };
+  const f1 = (v) => (Math.round(v * 10) / 10).toFixed(1);
+
+  function editV(o) { return Object.assign({ type: 'edit', val: o.get(), lastRot: 0, dec: 1 }, o); }
+  function confirmV(title, lines, yes, local = false) { return { type: 'confirm', title, lines, yes, sel: 0, local }; }
+  // «НЕТ» по умолчанию; первые 0,3 с диалог не реагирует.
+  function openConfirm(title, lines, yes, local = false) { push(confirmV(title, lines, yes, local)); guard(CONFIRM_GUARD); }
+  // Виды, которым дозатор не нужен: меню «ПУЛЬТ», его настройки и вход в обновление.
+  const isLocal = (v) => !!(v && v.local);
+
+  function calibConfirm() { openConfirm('КАЛИБРОВКА?', ['Сними шприцы:', 'каретка едет до BOT'], () => send('CMD', { a: 'calibrate' })); }
+  function needCalib(fn) { return () => { if (dz.H <= 0) toast('НУЖНА КАЛИБРОВКА', TOAST_LONG); else fn(); }; }
+
+  function cmEditor(title, field, getSteps, minSteps, maxSteps, perSec) {
+    const k = spc();
+    return editV({ title, unit: perSec ? 'СМ/С' : 'СМ', dec: 2, step: 0.01,
+      min: +(minSteps / k).toFixed(2), max: +(maxSteps / k).toFixed(2),
+      get: () => +(getSteps() / k).toFixed(2),
+      hint: (v) => '= ' + Math.round(v * k) + (perSec ? ' ШАГ/С' : ' ШАГ'),
+      save: (v) => send('SET', { f: field, v: Math.round(v * k) }) });
+  }
+  function syringeView(which) {
+    const key = which === 'A' ? 'sA' : 'sB', pre = 'syringe' + which;
+    return menuV(() => ({ title: 'ШПРИЦ ' + which, items: [
+      it('Пресет', () => presetLbl(dz[key].idx), () => push(menuV(() => ({ title: 'ПРЕСЕТ ' + which,
+        items: [...dz.presets.map((p, i) => it(`${p.vol} мл`, 'Ø' + f1(p.diam), () => {
+          ui.ackCb = (ok, why) => toast(ok ? 'СОХРАНЕНО' : why, ok ? TOAST_SHORT : TOAST_LONG);
+          send('SET', { f: pre + '.presetIdx', v: i }); pop(); })),
+          it('Назад', '', pop)] }), dz[key].idx))),
+      it('Диаметр', () => f1(dz[key].diam) + 'ММ', () => push(editV({ title: 'ДИАМЕТР ' + which, unit: 'ММ', step: 0.1, min: 1, max: 150,
+        get: () => dz[key].diam, hint: (v) => 'S = ' + Math.round(area(v)) + ' ММ2', save: (v) => send('SET', { f: pre + '.diameter', v }) }))),
+      it('Назад', '', pop)
+    ] }));
+  }
+  function presetsView() {
+    return menuV(() => ({ title: 'ПРЕСЕТЫ', items: [
+      ...dz.presets.map((p, i) => it(`${i + 1}: ${p.vol} мл`, 'Ø' + f1(p.diam), () => push(menuV(() => ({ title: 'ПРЕСЕТ ' + (i + 1), items: [
+        it('Объём', dz.presets[i].vol + 'МЛ', () => push(editV({ title: 'П' + (i + 1) + ': ОБЪЁМ', unit: 'МЛ', step: 1, dec: 0, min: 1, max: 500,
+          get: () => dz.presets[i].vol, save: (v) => send('PRESET', { i, vol: v, diam: dz.presets[i].diam }) }))),
+        it('Диаметр', f1(dz.presets[i].diam) + 'ММ', () => push(editV({ title: 'П' + (i + 1) + ': ДИАМЕТР', unit: 'ММ', step: 0.1, min: 1, max: 150,
+          get: () => dz.presets[i].diam, save: (v) => send('PRESET', { i, vol: dz.presets[i].vol, diam: v }) }))),
+        it('Назад', '', pop)
+      ] }))))),
+      it('Назад', '', pop)
+    ] }));
+  }
+  function settingsView() {
+    return menuV(() => ({ title: 'НАСТРОЙКИ', items: [
+      it('Шаг винта', f1(dz.pitch) + 'ММ', () => push(editV({ title: 'ШАГ ВИНТА', unit: 'ММ/ОБ', step: 0.1, min: 0.5, max: 20,
+        get: () => dz.pitch, hint: (v) => '1 СМ = ' + Math.round(STEPS_REV / v * 10) + ' ШАГ', save: (v) => send('SET', { f: 'screwPitch', v }) }))),
+      it('V парковки', cm(dz.parkSpeed) + 'СМ/С', () => push(cmEditor('V ПАРКОВКИ', 'parkSpeed', () => dz.parkSpeed, 50, 15000, true))),
+      it('V зарядки', cm(dz.chargeSpeed) + 'СМ/С', () => push(cmEditor('V ЗАРЯДКИ', 'chargeSpeed', () => dz.chargeSpeed, 50, 15000, true))),
+      it('Ход H', dz.H > 0 ? cm(dz.H) + 'СМ' : '!', () => push(Object.assign(cmEditor('ХОД H', 'fullPathSteps', () => dz.H, 0, 200000, false), { isH: true }))),
+      it('Пресеты шприцов', '>', () => push(presetsView())),
+      it('Ручной шаг', cm(dz.jogSteps) + 'СМ', () => push(cmEditor('РУЧНОЙ ШАГ', 'jogSteps', () => dz.jogSteps, 1, 100000, false))),
+      it('V ручная', cm(dz.jogSpeed) + 'СМ/С', () => push(cmEditor('V РУЧНАЯ', 'jogSpeed', () => dz.jogSpeed, 50, 15000, true))),
+      it('Назад', '', pop)
+    ] }));
+  }
+  // Меню «ПУЛЬТ»: сначала то, что меняется, потом справка (её строки курсор обводит
+  // рамкой — нажимать там нечего). Работает и без связи с дозатором.
+  function remoteView() {
+    const v = menuV(() => ({ title: 'ПУЛЬТ', items: [
+      it('Яркость', ui.bright + '/10', () => push(editV({ title: 'ЯРКОСТЬ', unit: '/10', step: 1, dec: 0, min: 1, max: 10, bright: true, local: true,
+        get: () => ui.bright, hint: (v) => v <= 1 ? 'МИНИМУМ, ДЛЯ ТЕМНОТЫ' : '1 - ДЛЯ ТЕМНОТЫ', save: (v) => { ui.bright = v; } }))),
+      it('Сон экрана', ui.sleepSec + 'С', () => push(editV({ title: 'СОН ЭКРАНА', unit: 'С', step: 5, dec: 0, min: 5, max: 300, local: true,
+        get: () => ui.sleepSec, hint: () => 'НАСТРОЙКА ПУЛЬТА', save: (v) => { ui.sleepSec = v; } }))),
+      it('Обновить прошивку', '', () => openConfirm('ОБНОВИТЬ?', ['Пульт отключится', 'от дозатора'], tryOta, true)),
+      it('Сброс настроек', '', () => openConfirm('СБРОС?', ['Яркость и сон экрана', 'по умолчанию'], () => { ui.bright = 6; ui.sleepSec = 30; ui.stack = [homeV()]; toast('НАСТРОЙКИ СБРОШЕНЫ', TOAST_LONG); }, true)),
+      it('Батарея', (3.3 + 0.9 * ui.batt).toFixed(2) + 'В ' + Math.round(ui.batt * 100) + '%'),
+      it('Сигнал', ui.radio ? '-52ДБМ' : '--'), it('Ответ', ui.radio ? '14МС' : '--'), it('Канал', '1'),
+      it('Верс.', '0.3.0'), it('Доз.', '1.1.0'),
+      it('Назад', '', pop)] }));
+    v.local = true;
+    return v;
+  }
+  const remoteItem = () => it('Пульт', '>', () => push(remoteView()));
+  function tryOta() {
+    const now = performance.now();
+    if (online(now) && isMoving()) { toast('СНАЧАЛА ОСТАНОВИ', TOAST_LONG); return; }
+    if (ui.batt < 0.2) { toast('ЗАРЯДИ ПУЛЬТ', TOAST_LONG); return; }
+    ui.ota = { phase: 'wait', pct: 0, since: now };
+    log('ESP-NOW выключен: радио у сети dozator-ota', 'fail');
+    $('ota-sim').hidden = false;
+  }
+  function doseTimeEditor() {
+    const L2 = dz.H - dz.cnt;
+    const tMin = Math.max(0.3, L2 / 15000 / 60), tMax = Math.min(20, L2 / 1 / 60);
+    // В секундах; правится двумя полями: минуты, потом секунды.
+    return editV({ title: 'ВРЕМЯ ДОЗЫ', mmss: true, field: 0, step: 1, dec: 0, min: Math.ceil(tMin * 60), max: Math.floor(tMax * 60),
+      get: () => Math.round(dz.doseTimeMin * 60),
+      hint: (v) => { const [a, b] = planVols(); return 'A ' + f1(a * 60 / v) + '  B ' + f1(b * 60 / v) + ' МЛ/МИН'; },
+      save: (v) => send('SET', { f: 'doseTimeMin', v: v / 60 }) });
+  }
+  const CAUSE = { manual: 'Вручную', stuck_home: 'TOP не найден', stuck_charge: 'A и B не нажались', stuck_end: 'BOT не найден',
+    calib_fail: 'Брак калибровки', bad_charge: 'Заряд ниже H' };
+
+  function buildHome() {
+    const s = dz.screen, sw = dz.sw;
+    const stop = it('■ Стоп', '', () => send('CMD', { a: 'stop' }));
+    switch (s) {
+      case 'IDLE': return { title: 'ПРОСТОЙ', info: [], items: [
+        it('Парковка', '', () => send('CMD', { a: 'park' })),
+        it('Калибровка хода', dz.H > 0 ? '' : '!', calibConfirm),
+        it('Ручной режим', '', () => send('CMD', { a: 'debug' })),
+        it('Настройки', '>', () => push(settingsView())), remoteItem()] };
+      case 'PARKING': return { title: 'ПАРКОВКА', info: ['Еду домой к TOP', 'Позиция ' + cm(dz.cnt) + ' см'], items: [stop] };
+      case 'PARKED': return { title: 'ГОТОВ', info: [], items: [
+        it('Старт зарядки', dz.H > 0 ? '' : '!', needCalib(() => send('CMD', { a: 'start_charging' }))),
+        it('Шприц A', presetLbl(dz.sA.idx) + ' Ø' + f1(dz.sA.diam), () => push(syringeView('A'))),
+        it('Шприц B', presetLbl(dz.sB.idx) + ' Ø' + f1(dz.sB.diam), () => push(syringeView('B'))),
+        it('Калибровка хода', dz.H > 0 ? '' : '!', calibConfirm),
+        it('Ручной режим', '', () => send('CMD', { a: 'debug' })),
+        it('Настройки', '>', () => push(settingsView())), remoteItem()] };
+      case 'CHARGING': return { title: 'ЗАРЯДКА', info: ['Жду упора A и B', 'Позиция ' + cm(dz.cnt) + ' см'], items: [stop] };
+      case 'CHARGED': { const [a, b] = planVols(); return { title: 'ЗАРЯЖЕНО', info: ['Доза A' + f1(a) + ' B' + f1(b) + ' мл'], items: [
+        it('Время дозы', mmss(Math.round(dz.doseTimeMin * 60)), () => push(doseTimeEditor())),
+        it('Пуск', '', needCalib(() => send('CMD', { a: 'pusk' }))),
+        it('Отменить цикл', '', () => openConfirm('ОТМЕНИТЬ?', ['Заряд сбросится,', 'каретка останется'], () => send('CMD', { a: 'stop' }))),
+        remoteItem()] }; }
+      case 'DONE': { const t = dz.doneReason === 'bot' ? 'ГОТОВО: BOT' : dz.doneReason === 'abort' ? 'ПРЕРВАНО' : 'ГОТОВО';
+        return { title: t, info: ['A ' + f1(dz.dose.vA) + '  B ' + f1(dz.dose.vB) + ' мл'], items: [
+          it('Новый цикл', '', () => send('CMD', { a: 'new_cycle' })),
+          it('Парковка', '', () => send('CMD', { a: 'park' })),
+          it('Калибровка хода', dz.H > 0 ? '' : '!', calibConfirm),
+          it('Ручной режим', '', () => send('CMD', { a: 'debug' })),
+          it('Настройки', '>', () => push(settingsView())), remoteItem()] }; }
+      case 'STOPPED': return { title: 'ОСТАНОВЛЕНО',
+        // Дозу остановили кнопкой СТОП — сколько успело выйти.
+        info: [CAUSE[dz.stopCause] || dz.stopCause, ...(ui.fromDosing ? ['Вышло A' + f1(dz.dose.vA) + ' B' + f1(dz.dose.vB) + ' мл'] : [])], items: [
+        it('Парковка', '', () => send('CMD', { a: 'park' })),
+        it('Ручной режим', '', () => send('CMD', { a: 'debug' })),
+        it('Настройки', '>', () => push(settingsView())), remoteItem()] };
+      case 'CALIBRATING': return { title: 'КАЛИБР. ' + (dz.calibPhase + 1) + '/2',
+        info: [dz.calibPhase ? 'Меряю ход до BOT' : 'Ищу дом (TOP)', 'Позиция ' + cm(dz.cnt) + ' см'], items: [stop] };
+    }
+    return { title: s, info: [], items: [] };
+  }
+  function debugMenu() {
+    return menuV(() => ({ title: 'РУЧНОЙ', items: [
+      it('Ручной шаг', cm(dz.jogSteps) + 'СМ', () => push(cmEditor('РУЧНОЙ ШАГ', 'jogSteps', () => dz.jogSteps, 1, 100000, false))),
+      it('V ручная', cm(dz.jogSpeed) + 'СМ/С', () => push(cmEditor('V РУЧНАЯ', 'jogSpeed', () => dz.jogSpeed, 50, 15000, true))),
+      it('Выйти из ручного', '', () => send('CMD', { a: 'debug_back' })),
+      remoteItem(),
+      it('Назад', '', pop)] }));
+  }
+  function itemsOf(v) { return v.type === 'home' ? buildHome().items : v.type === 'menu' ? v.build().items : []; }
+
+  /* ── отрисовка ── */
+  function drawIcons(now, ok = true) {
+    if (ok && Math.floor(now / 300) % 2) fill(97, 6, 4, 4, 1);    // пульс: мигает на каждый пакет
+    else if (!ok) box(97, 6, 4, 4);
+    for (let i = 0; i < 3; i++) { const h = 3 + 2 * i; if (ok) fill(104 + i * 3, 12 - h, 2, h, 1); else px(104 + i * 3, 11, 1); }
+    const low = ui.batt < 0.15;
+    if (!low || Math.floor(now / 500) % 2) { box(114, 4, 12, 8); fill(126, 6, 2, 4, 1); fill(116, 6, Math.round(8 * ui.batt), 4, 1); }
+  }
+  // Концевики в шапке, всегда в одном месте: A B L(ow = BOT) T(op). Нажат — буква,
+  // отпущен — точка. Без связи не рисуем: данные устарели.
+  const SW_X = 70;
+  function drawHeader(title, now, ok = true) {
+    const sw = ok && online(now);
+    txtR(0, 3, clip(title, Math.floor((sw ? SW_X - 3 : 94) / 6)));
+    if (sw) [['A', dz.sw.a], ['B', dz.sw.b], ['L', dz.sw.bot], ['T', dz.sw.top]].forEach(([l, on], i) => {
+      const x = SW_X + i * 6;
+      if (on) txtR(x, 3, l); else fill(x + 2, 10, 2, 2, 1);
+    });
+    drawIcons(now, ok);
+  }
+  // Подсказки — первые невыбираемые строки, дальше пункты; видно четыре строки.
+  function drawList(info, items, v, now) {
+    const total = info.length + items.length; if (!total) return;
+    if (items.length) v.cursor = clamp(v.cursor, 0, items.length - 1);
+    const cur = info.length + v.cursor;
+    if (v.cursor === 0) v.scroll = 0;
+    if (cur < v.scroll) v.scroll = cur;
+    if (cur >= v.scroll + ROWS) v.scroll = cur - ROWS + 1;
+    v.scroll = clamp(v.scroll, 0, Math.max(0, total - ROWS));
+    const sb = total > ROWS, wA = sb ? 124 : 128;
+    for (let i = 0; i < ROWS; i++) {
+      const r = v.scroll + i; if (r >= total) break;
+      const y = rowTop(i);
+      if (r < info.length) {
+        txtR(1, y + 2, clip(info[r], Math.floor((wA - 2) / 6)));
+        // Справка кончилась, дальше пункты — пунктир, чтобы не путать одно с другим.
+        if (r === info.length - 1 && items.length) for (let x = 0; x < wA; x += 2) px(x, y + ROW_H - 1, 1);
+        continue;
+      }
+      const k = r - info.length, item = items[k], sel = k === v.cursor;
+      // Курсор — заливка; рамка — «сейчас нажать нельзя» (защитное окно). Строки
+      // справки не выделяются вовсе: курсор по ним только прокручивает список.
+      const info = !item.act, solid = sel && !info && !guarded(now);
+      if (solid) fill(0, y, wA, ROW_H, 1); else if (sel && !info) box(0, y, wA, ROW_H);
+      const val = item.value ? String(typeof item.value === 'function' ? item.value() : item.value) : '';
+      const vw = tw(val.toUpperCase());
+      const maxL = Math.floor((wA - 3 - (val ? vw + 6 : 0)) / 6);
+      txtR(2, y + 2, clip(item.label, maxL), solid);
+      if (val) txtR(wA - 2 - vw, y + 2, val, solid);
+    }
+    if (sb) {
+      const t0 = HEADER_H, tH = ROWS * ROW_H;
+      for (let j = t0; j < t0 + tH; j += 2) px(126, j, 1);
+      const hh = Math.max(4, Math.round(tH * ROWS / total));
+      const yy = t0 + Math.round((tH - hh) * v.scroll / (total - ROWS));
+      fill(125, yy, 3, hh, 1);
+    }
+  }
+  // Крупные цифры: 5×7 ×3 = 21 px, базовая линия как у logisoso24 в прошивке.
+  function drawEdit(v, now) {
+    drawHeader(v.title, now);
+    if (v.mmss) {                                                       // М:СС, правится поле под чертой
+      const m = String(Math.floor(v.val / 60)), ss = String(v.val % 60).padStart(2, '0');
+      const xc = txt(1, 22, m, false, 3), xs = txt(xc, 22, ':', false, 3), xe = txt(xs, 22, ss, false, 3);
+      if (v.field === 0) fill(1, 45, xc - 4, 2, 1); else fill(xs, 45, xe - xs - 3, 2, 1);
+      txtR(xe + 3, 34, v.field === 0 ? 'МИН' : 'СЕК');
+    } else {
+      const x2 = txt(1, 22, v.val.toFixed(v.dec), false, 3);
+      txtR(x2 + 2, 34, v.unit);
+    }
+    if (!v.waiting && Math.floor(now / 400) % 2) { txt(119, 21, '▲'); txt(119, 31, '▼'); }
+    const hint = v.waiting ? 'СОХРАНЯЮ' + '.'.repeat(1 + Math.floor(now / 300) % 3)
+      : v.hint ? v.hint(v.val) : v.min + '…' + v.max + ' ' + v.unit;
+    txtR(1, 53, clip(hint, 21));
+  }
+  function drawConfirm(v, now) {
+    drawHeader(v.title, now);
+    v.lines.forEach((l, i) => txtR(1, rowTop(i) + 2, clip(l, 21)));
+    [['НЕТ', 10], ['ДА', 74]].forEach(([t, x], i) => {
+      const w = 44, h = 14, y = 64 - h;
+      if (v.sel === i) fill(x, y, w, h, 1); else box(x, y, w, h);
+      txtR(x + Math.round((w - tw(t)) / 2), y + 3, t, v.sel === i);
+    });
+  }
+  function drawDosing(now) {
+    const d = dz.dose;
+    drawHeader('ДОЗИРОВАНИЕ', now);
+    txt(1, 22, mmss(d.elapsed), false, 3);
+    txtR(72, 20, 'A ' + f1(d.vA) + 'МЛ'); txtR(72, 33, 'B ' + f1(d.vB) + 'МЛ');
+    box(0, 46, 128, 5); fill(1, 47, Math.round(126 * d.progress), 3, 1);
+    txtR(1, 53, 'Нажми: прервать');
+    const pct = Math.round(d.progress * 100) + '%'; txtR(128 - tw(pct), 53, pct);
+  }
+  function drawDebug(now) {
+    drawHeader('РУЧНОЙ', now);
+    const x2 = txt(1, 22, cm(dz.cnt), false, 3);
+    txtR(x2 + 2, 34, 'СМ');
+    if (dz.moving) txt(117, 25, dz.target < dz.cnt ? '▲' : '▼');
+    txtR(1, 53, 'Шаг ' + cm(dz.jogSteps));                                 // концевики — в шапке
+    txt(74, 49, 'КРУТИ=ХОД'); txt(74, 57, 'КЛИК=МЕНЮ');
+  }
+  const NO_LINK_SLEEP = 120000;
+  const sleepAt = () => Math.max(ui.lastLink, ui.lastInput) + NO_LINK_SLEEP;
+  function drawLost(now) {
+    drawHeader('НЕТ СВЯЗИ', now, false);
+    txtR(1, rowTop(0) + 2, 'Дозатор не отвечает');
+    txtR(1, rowTop(1) + 2, 'Нет связи ' + mmss((now - ui.lastLink) / 1000));
+    txtR(1, rowTop(2) + 2, 'СТОП - на дозаторе');
+    txtR(1, rowTop(3) + 2, 'Нажми: пульт');
+    const z = 'СОН ' + mmss(Math.max(0, (sleepAt() - now) / 1000));
+    txtR(127 - tw(z), rowTop(3) + 2, z);
+  }
+  // Пока держат СТОП — в шапке полоса до парковки (текст XOR поверх).
+  function drawParkHold(held) {
+    const p = Math.min(1, Math.max(0, (held - 150) / (1500 - 150)));
+    fill(0, 0, 128, 16, 0); box(0, 1, 128, 14); fill(2, 3, Math.round(124 * p), 10, 1);
+    const t = 'ПАРКОВКА', x0 = Math.round((128 - tw(t)) / 2);
+    let x = x0;
+    for (const ch of t) {
+      const g = GL[ch] || GL['?'];
+      for (let r = 0; r < 9; r++) for (let c = 0; c < 5; c++) if (g[TALL[r]][c] === '#') { const i = (3 + r) * W + x + c; fb[i] = fb[i] ? 0 : 1; }
+      x += 6;
+    }
+  }
+  function drawToast(text) {
+    const t = clip(text, 19), w = Math.min(126, tw(t.toUpperCase()) + 14), x = Math.round((128 - w) / 2);
+    fill(x, 26, w, 20, 0); box(x, 26, w, 20); txtR(x + 7, 32, t);
+  }
+  // Экран обновления: слева QR-код сети (здесь — условный узор), справа сеть и пароль.
+  const QR = (() => { let x = 0x5eed; const q = []; for (let i = 0; i < 29 * 29; i++) { x = (x * 1103515245 + 12345) & 0x7fffffff; q.push((x >> 16) & 1); } return q; })();
+  function drawOta(now) {
+    const o = ui.ota;
+    if (o.phase === 'wait') {
+      fill(0, 2, 60, 60, 1);
+      const off = 1;
+      for (let y = 0; y < 29; y++) for (let x = 0; x < 29; x++) {
+        const fin = (a, b) => x >= a && x < a + 7 && y >= b && y < b + 7;
+        let on = QR[y * 29 + x];
+        for (const [a, b] of [[0, 0], [22, 0], [0, 22]]) if (fin(a, b)) { const dx = x - a, dy = y - b; on = (dx === 0 || dy === 0 || dx === 6 || dy === 6 || (dx > 1 && dx < 5 && dy > 1 && dy < 5)) ? 1 : 0; }
+        if (on) fill(off + x * 2, 2 + off + y * 2, 2, 2, 0);
+      }
+      const X = 62;   // шрифт прототипа шире u8g2 5x7 — колонка чуть шире, чем в прошивке
+      txt(X, 0, 'ЖДУ ФАЙЛ'); for (let i = X; i < 128; i++) px(i, 10, 1);
+      txt(X, 12, 'DOZATOR-OTA'); txt(X, 20, 'DOZATOR123'); txt(X, 28, '192.168.4.1');
+      txt(X, 39, 'СТОП ОТКЛ.'); txt(X, 48, 'ВЫХОД:'); txt(X, 56, 'ДЕРЖИ ЭНК.');
+    } else if (o.phase === 'upload') {
+      drawHeader('ОБНОВЛЕНИЕ', now, false);
+      const x2 = txt(0, 22, String(o.pct), false, 3); txtR(x2 + 3, 34, '%');
+      box(0, 50, 128, 6); fill(1, 51, Math.round(126 * o.pct / 100), 4, 1);
+      txt(70, 24, 'НЕ ВЫКЛЮЧАЙ'); txt(70, 34, 'ПУЛЬТ'); txt(0, 57, '0.3.0+5EE03B0');
+    } else {
+      drawHeader('ОБНОВЛЕНИЕ', now, false);
+      txtR(1, rowTop(0) + 6, 'Готово'); txtR(1, rowTop(2) + 2, 'Перезагрузка...');
+    }
+  }
+  function render(now) {
+    clear();
+    if (ui.ota) { drawOta(now); blit(); return; }
+    if (ui.off || ui.deep) { blit(); return; }
+    const linkOk = online(now);
+    if (!linkOk && !isLocal(topV())) drawLost(now);
+    else {
+      const v = topV();
+      if (v.type === 'home') {
+        if (dz.screen === 'DOSING') drawDosing(now);
+        else if (dz.screen === 'DEBUG') drawDebug(now);
+        else { const b = buildHome(); drawHeader(b.title, now); drawList(b.info, b.items, v, now); }
+      } else if (v.type === 'menu') { const b = v.build(); drawHeader(b.title, now, linkOk); drawList(b.info || [], b.items, v, now); }
+      else if (v.type === 'edit') drawEdit(v, now);
+      else if (v.type === 'confirm') drawConfirm(v, now);
+    }
+    if (ui.toast && now < ui.toast.until) drawToast(ui.toast.text);
+    const held = (ui.stopDown && !ui.parkFired) ? now - ui.stopDown : 0;
+    if (held >= 150) drawParkHold(held);
+    const tv = topV();
+    const saved = ui.bright; if (tv && tv.type === 'edit' && tv.bright) ui.bright = tv.val;   // крутишь — сразу видно
+    blit(); ui.bright = saved;
+  }
+
+  /* ── ввод ── */
+  // Правила жестов (одни на всех экранах), как в прошивке 0.3.0:
+  //   поворот — курсор/значение (в ручном режиме — толчок); клик — выполнить/сохранить/ответить;
+  //   удержание ручки — назад без сохранения (в ручном режиме — «ВЫЙТИ?»);
+  //   СТОП — остановить мотор, экран не меняется; удержание СТОП — парковка.
+  function input(kind, d, accel = true) {
+    const now = performance.now();
+    if (ui.ota) {                                                       // режим обновления: только выход удержанием
+      if (kind === 'long' && ui.ota.phase !== 'upload') otaExit();
+      return;
+    }
+    if (ui.deep) { ui.deep = false; ui.off = false; ui.lastInput = now; guard(WAKE_GUARD); toast('ПОДКЛЮЧЕНИЕ…', 700); if (kind !== 'stop') return; }
+    if (kind === 'park') {                                              // удержание СТОП 1,5 с
+      wake(now);
+      if (!online(now)) { toast('НЕТ СВЯЗИ'); return; }
+      send('CMD', { a: 'home' }); toast('ПАРКОВКА');
+      return;
+    }
+    if (kind === 'stop') {                                              // СТОП: всегда, даже на погасшем экране
+      wake(now);
+      if (!online(now)) { toast('СТОП ЖДЁТ СВЯЗЬ'); return; }
+      if (isMoving()) { send('CMD', { a: dz.screen === 'DEBUG' ? 'jog_stop' : 'stop' }); toast('СТОП'); }
+      return;
+    }
+    if (ui.off) { wake(now); return; }                                  // первое касание только будит
+    ui.lastInput = now;
+    const v = topV(), scr = dz.screen;
+    // Без связи работает только своё меню пульта; клик на «НЕТ СВЯЗИ» его открывает.
+    if (!online(now) && !isLocal(v)) { if (kind === 'click' && !guarded(now)) push(remoteView()); return; }
+    if ((kind === 'click' || kind === 'rot') && guarded(now)) { log('· ввод отброшен: защитное окно'); return; }
+    if (kind === 'rot') {
+      if (v.type === 'edit') {
+        if (v.waiting) return;
+        const dt = now - v.lastRot; v.lastRot = now;
+        const mult = !accel ? 1 : dt < 40 ? 10 : dt < 100 ? 4 : 1;
+        if (v.mmss) { v.val = clamp(v.val + d * (v.field === 0 ? 60 : mult), v.min, v.max); return; }   // минута / секунда
+        v.val = +clamp(Math.round((v.val + d * v.step * mult) / v.step) * v.step, v.min, v.max).toFixed(v.dec);
+        return;
+      }
+      if (v.type === 'confirm') { v.sel = d > 0 ? 1 : 0; return; }
+      if (v.type === 'home' && scr === 'DEBUG') { send('JOG', { steps: d * dz.jogSteps }); return; }
+      if (v.type === 'home' && scr === 'DOSING') return;
+      const items = itemsOf(v); v.cursor = clamp(v.cursor + d, 0, Math.max(0, items.length - 1));
+      return;
+    }
+    if (kind === 'click') {
+      if (v.type === 'edit') {
+        if (v.waiting) return;
+        if (v.mmss && v.field === 0) { v.field = 1; return; }            // минуты → секунды, сохранение — со секунд
+        if (v.isH && v.val <= 0 && dz.H > 0) {                          // обнулить H = снять калибровку
+          pop(); openConfirm('СБРОС H?', ['Ход H = 0:', 'калибровка потеряется'], () => send('SET', { f: 'fullPathSteps', v: 0 }));
+          return;
+        }
+        if (v.local) { v.save(v.val); pop(); toast('СОХРАНЕНО'); return; }
+        // Закроется, когда дозатор подтвердит; при отказе останется открытым с набранным.
+        v.waiting = true;
+        ui.ackCb = (ok, why) => {
+          if (ok) { if (topV() === v) pop(); toast('СОХРАНЕНО'); }
+          else { v.waiting = false; toast(why, TOAST_LONG); }
+        };
+        v.save(v.val);
+        return;
+      }
+      if (v.type === 'confirm') { const yes = v.sel === 1; pop(); if (yes) v.yes(); return; }
+      if (v.type === 'home' && scr === 'DEBUG') { push(debugMenu()); return; }
+      if (v.type === 'home' && scr === 'DOSING') { openConfirm('ПРЕРВАТЬ?', ['Доза остановится,', 'объём запишется'], () => send('CMD', { a: 'abort' })); return; }
+      const items = itemsOf(v), x = items[v.cursor]; if (x && x.act) x.act();
+      return;
+    }
+    if (kind === 'long') {
+      if (v.type === 'edit' && v.mmss && v.field === 1 && !v.waiting) v.field = 0;   // секунды → минуты
+      else if (v.type === 'home' && scr === 'DEBUG') openConfirm('ВЫЙТИ?', ['Из ручного режима,', 'каретка останется'], () => send('CMD', { a: 'debug_back' }));
+      else pop();
+    }
+  }
+  function otaExit() {
+    ui.ota = null; $('ota-sim').hidden = true;
+    ui.stack = [homeV()]; ui.off = false; ui.lastInput = performance.now();
+    ui.lastRx = ui.lastLink = performance.now(); guard(LINK_GUARD);
+    log('перезагрузка, ESP-NOW снова на канале 1', 'rx');
+  }
+
+  /* ── энкодер ── */
+  const knob = $('knob'), knobRot = $('knob-rot');
+  let knobAngle = 0;
+  const setKnob = () => { knobRot.style.transform = `rotate(${knobAngle}deg)`; };
+  function flashPress() { knob.classList.add('pressed'); setTimeout(() => knob.classList.remove('pressed'), 140); }
+  function rot(d, accel = true) { knobAngle += d * 18; setKnob(); input('rot', d, accel); }
+  let drag = null;
+  knob.addEventListener('pointerdown', (e) => {
+    e.preventDefault(); knob.focus();
+    try { knob.setPointerCapture(e.pointerId); } catch (_) {}
+    const r = knob.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    drag = { cx, cy, a: Math.atan2(e.clientY - cy, e.clientX - cx), acc: 0, moved: false, long: false };
+    knob.classList.add('pressed');
+    drag.timer = setTimeout(() => { if (drag && !drag.moved) { drag.long = true; input('long'); } }, 700);
+  });
+  knob.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const a = Math.atan2(e.clientY - drag.cy, e.clientX - drag.cx);
+    let da = a - drag.a; if (da > Math.PI) da -= 2 * Math.PI; if (da < -Math.PI) da += 2 * Math.PI;
+    drag.a = a; const deg = da * 180 / Math.PI; drag.acc += deg; knobAngle += deg; setKnob();
+    if (Math.abs(drag.acc) > 6) { drag.moved = true; knob.classList.remove('pressed'); }
+    while (drag.acc >= 18) { drag.acc -= 18; input('rot', 1); }
+    while (drag.acc <= -18) { drag.acc += 18; input('rot', -1); }
+  });
+  const endDrag = () => {
+    if (!drag) return; clearTimeout(drag.timer); knob.classList.remove('pressed');
+    if (!drag.moved && !drag.long) input('click');
+    drag = null;
+  };
+  knob.addEventListener('pointerup', endDrag);
+  knob.addEventListener('pointercancel', () => { if (drag) { clearTimeout(drag.timer); drag = null; knob.classList.remove('pressed'); } });
+  let wheelAcc = 0;
+  const onWheel = (e) => { e.preventDefault(); wheelAcc += e.deltaY; while (wheelAcc >= 40) { wheelAcc -= 40; rot(1); } while (wheelAcc <= -40) { wheelAcc += 40; rot(-1); } };
+  knob.addEventListener('wheel', onWheel, { passive: false });
+  cvs.addEventListener('wheel', onWheel, { passive: false });
+  $('b-ccw').addEventListener('click', () => rot(-1, false));
+  $('b-cw').addEventListener('click', () => rot(1, false));
+  $('b-click').addEventListener('click', () => { flashPress(); input('click'); });
+  $('b-long').addEventListener('click', () => { flashPress(); input('long'); });
+  $('b-ota-up').addEventListener('click', () => { if (ui.ota && ui.ota.phase === 'wait') { ui.ota.phase = 'upload'; ui.ota.pct = 0; } });
+  // СТОП: нажатие — стоп сразу, удержание 1,5 с — парковка (проверяется в главном цикле)
+  const stopDown = () => { if (ui.stopDown && !ui.parkFired) return; ui.stopDown = performance.now(); ui.parkFired = false; input('stop'); };
+  const stopUp = () => { ui.stopDown = 0; ui.parkFired = true; };
+  const stopBtn = $('p-stop');
+  stopBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); stopDown(); });
+  stopBtn.addEventListener('pointerup', stopUp);
+  stopBtn.addEventListener('pointerleave', stopUp);
+  stopBtn.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && !e.repeat) { e.preventDefault(); stopDown(); } });
+  stopBtn.addEventListener('keyup', (e) => { if (e.key === 'Enter' || e.key === ' ') stopUp(); });
+  let keyHold = null;
+  document.addEventListener('keydown', (e) => {
+    const tag = (e.target.tagName || '').toLowerCase();
+    if (['input', 'select', 'textarea', 'button'].includes(tag)) return;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { e.preventDefault(); rot(1, e.repeat); }
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { e.preventDefault(); rot(-1, e.repeat); }
+    else if (e.key === 'Backspace') { e.preventDefault(); input('long'); }
+    else if (e.key === 's' || e.key === 'S' || e.key === 'ы' || e.key === 'Ы') { e.preventDefault(); if (!e.repeat) stopDown(); }
+    else if ((e.key === 'Enter' || e.key === ' ') && !e.repeat) {
+      e.preventDefault(); knob.classList.add('pressed');
+      keyHold = { long: false, timer: setTimeout(() => { if (keyHold) { keyHold.long = true; input('long'); } }, 700) };
+    }
+  });
+  document.addEventListener('keyup', (e) => {
+    if (e.key === 's' || e.key === 'S' || e.key === 'ы' || e.key === 'Ы') stopUp();
+    if ((e.key === 'Enter' || e.key === ' ') && keyHold) {
+      clearTimeout(keyHold.timer); knob.classList.remove('pressed');
+      if (!keyHold.long) input('click'); keyHold = null;
+    }
+  });
+
+  /* ── панель модели ── */
+  $('oled-color').addEventListener('change', (e) => { oledColor = e.target.value; });
+  $('batt').addEventListener('input', (e) => { ui.batt = +e.target.value / 100; $('batt-v').textContent = e.target.value + '%'; });
+  $('t-link').addEventListener('change', (e) => { ui.radio = e.target.checked; log(ui.radio ? 'связь восстановлена' : 'связь пропала', ui.radio ? 'rx' : 'fail'); });
+  $('t-syr').addEventListener('change', (e) => { dz.syringes = e.target.checked; });
+  $('b-newsyr').addEventListener('click', () => { dz.cA = 18000; dz.cB = 18600; });
+  $('b-phys').addEventListener('click', () => { if (dz.screen === 'STOPPED') go('PARKING'); else toStopped('manual'); });
+  let simFactor = 10;
+  $('t-speed').addEventListener('change', (e) => { simFactor = +e.target.value; });
+
+  const yOf = (phys) => 30 + clamp(phys, -150, dz.Hreal + 150) / dz.Hreal * 222;
+  const mech = { car: $('m-car'), top: $('m-top'), bot: $('m-bot'), syr: $('m-syr'), hA: $('m-headA'), hB: $('m-headB'), rA: $('m-rodA'), rB: $('m-rodB') };
+  const swEl = { top: $('s-top'), a: $('s-a'), b: $('s-b'), bot: $('s-bot') };
+  const chip = $('chip'), note = $('sleepnote');
+  function drawSim(now) {
+    const yc = yOf(dz.phys);
+    mech.car.setAttribute('y', (yc - 8).toFixed(1));
+    mech.top.setAttribute('fill', dz.sw.top ? 'var(--ok)' : 'var(--line)');
+    mech.bot.setAttribute('fill', dz.sw.bot ? 'var(--ok)' : 'var(--line)');
+    mech.syr.style.display = dz.syringes ? '' : 'none';
+    const yA = yOf(dz.cA), yB = yOf(dz.cB);
+    mech.hA.setAttribute('y', yA.toFixed(1)); mech.hB.setAttribute('y', yB.toFixed(1));
+    mech.rA.setAttribute('y1', yA.toFixed(1)); mech.rA.setAttribute('y2', Math.max(150, yA).toFixed(1));
+    mech.rB.setAttribute('y1', yB.toFixed(1)); mech.rB.setAttribute('y2', Math.max(150, yB).toFixed(1));
+    mech.hA.setAttribute('fill', dz.sw.a ? 'var(--ok)' : 'var(--line)');
+    mech.hB.setAttribute('fill', dz.sw.b ? 'var(--ok)' : 'var(--line)');
+    for (const k in swEl) swEl[k].classList.toggle('on', dz.sw[k]);
+    $('r-cnt').textContent = dz.cnt + ' ш · ' + cm(dz.cnt) + ' см';
+    $('r-phys').textContent = dz.phys + ' ш · ' + cm(dz.phys) + ' см';
+    $('r-H').textContent = dz.H > 0 ? cm(dz.H) + ' см' : 'нет';
+    $('r-spd').textContent = dz.moving ? Math.round(dz.speed) + ' ш/с' : 'стоит';
+    chip.textContent = dz.screen;
+    chip.className = 'chip' + (isMoving() ? ' move' : dz.screen === 'STOPPED' ? ' stop' : '');
+    const n = ui.deep ? 'Пульт в глубоком сне: радио выключено, разбудят кнопки и поворот ручки.'
+      : (now - ui.lastRx) >= 1000 ? 'Нет связи с дозатором. Через 2 мин без связи и без нажатий пульт уснёт.'
+      : ui.off ? 'Экран погас, связь держится. Первое касание только разбудит экран.' : '';
+    if (note.textContent !== n) note.textContent = n;
+  }
+
+  /* ── главный цикл ── */
+  let last = performance.now();
+  ui.stack = [homeV()]; ui.screen = dz.screen;
+  readSw();
+  function frame(now) {
+    const dtReal = Math.min(0.1, (now - last) / 1000); last = now;
+    const dt = dtReal * simFactor;
+    const n = dz.moving ? Math.max(1, Math.ceil(dz.speed * dt / 30)) : 1;
+    for (let i = 0; i < n; i++) { physTick(dt / n); readSw(); logic(dt / n); }
+    if (ui.radio && !ui.deep && !ui.ota) { ui.lastRx = now; ui.lastLink = now; }
+    if (ui.ota) {                                                       // режим обновления
+      const o = ui.ota;
+      if (o.phase === 'upload') { o.pct = Math.min(100, o.pct + 0.6); if (o.pct >= 100) { o.phase = 'done'; o.since = now; } }
+      else if (o.phase === 'done' && now - o.since > 1800) otaExit();
+      else if (o.phase === 'wait' && now - o.since > 600000) otaExit();
+      render(now); drawSim(now); requestAnimationFrame(frame); return;
+    }
+    if (ui.stopDown && !ui.parkFired && now - ui.stopDown >= 1500) { ui.parkFired = true; input('park'); }
+    const on = online(now);
+    // Связь пропала: будим экран и закрываем диалог. Вернулась — защитное окно.
+    if (ui.wasOnline && !on) { if (!ui.deep) { ui.off = false; ui.lastInput = now; } if (topV().type === 'confirm' && !isLocal(topV())) pop(); }
+    else if (!ui.wasOnline && on) guard(LINK_GUARD);
+    ui.wasOnline = on;
+    if (dz.screen !== ui.screen) {
+      const prev = ui.screen;
+      ui.fromDosing = prev === 'DOSING' && dz.screen === 'STOPPED';
+      const tv = topV();
+      if (tv.type === 'edit' && !tv.waiting) toast('ПРАВКА ОТМЕНЕНА', TOAST_LONG);
+      // Мотор только что встал — курсор оказался на «СТАРТ…», окно длиннее.
+      guard(MOVING_SCREENS.includes(prev) && !MOVING_SCREENS.includes(dz.screen) ? MOVE_END_GUARD : SCREEN_GUARD);
+      ui.screen = dz.screen; ui.stack = [homeV()];
+      if (!ui.deep) { ui.off = false; ui.lastInput = now; }
+    }
+    const moving = isMoving();
+    if (moving && on && ui.off && !ui.deep) { ui.off = false; ui.lastInput = now; }
+    if (!(moving && on) && !ui.off && now - ui.lastInput > ui.sleepSec * 1000) {
+      ui.off = true; ui.offAt = now;
+      if (topV().type === 'confirm') pop();                             // диалог не переживает сон экрана
+    }
+    // Глубокий сон — только после 2 мин без дозатора и без нажатий; при связи пульт не засыпает.
+    if (!ui.deep && (now - ui.lastRx) >= 1000 && now > sleepAt()) { ui.deep = true; ui.off = true; }
+    render(now); drawSim(now);
+    requestAnimationFrame(frame);
+  }
+  log('пульт на связи, канал 1', 'rx');
+  requestAnimationFrame(frame);
+})();
+</script>

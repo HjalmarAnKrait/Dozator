@@ -6,6 +6,7 @@ public:
     void    moveTo(int32_t targetSteps, float speedStepsPerSec) override;
     void    stop() override;
     int32_t currentPosition() const override { return m_pos; }
+    int32_t targetPosition() const override  { return m_target; }
     bool    isBusy() const override          { return m_pos != m_target; }
     void    zero() override                  { m_pos = 0; m_target = 0; }
     void    enable()  override { m_enabled = true;  }

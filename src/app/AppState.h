@@ -6,7 +6,7 @@ constexpr uint8_t MAX_PRESETS = 8;
 
 struct SyringePreset {
     float vol;    // ml
-    float diam;   // mm (outer diameter)
+    float diam;   // мм, ВНУТРЕННИЙ диаметр шприца (по нему считается объём)
 };
 
 struct SyringeChoice {
@@ -30,11 +30,14 @@ struct SwitchStates {
 };
 
 // Причина завершения дозирования (для сообщения на экране «Готово»).
+// Порядок совпадает с RpDoneReason в shared/RemoteProtocol.h.
 enum class DoneReason : uint8_t { TIMER, BOT, ABORT };
 
 // Причина перехода в STOPPED (ручной стоп или сбой-сторож).
-enum class StopCause : uint8_t { MANUAL, STUCK_HOME, STUCK_CHARGE, STUCK_END, CALIB_FAIL };
+// Порядок значений совпадает с RpStopCause в shared/RemoteProtocol.h — не переставлять.
+enum class StopCause : uint8_t { MANUAL, STUCK_HOME, STUCK_CHARGE, STUCK_END, CALIB_FAIL, BAD_CHARGE };
 
+// Значения IDLE..DEBUG совпадают с RpScreen в shared/RemoteProtocol.h — не переставлять.
 enum class Screen : uint8_t {
     IDLE,        // стартовое состояние: ничего не делаем, ждём команды пользователя
     PARKING,
@@ -94,6 +97,12 @@ struct AppState {
     float          planVolB   = 0.0f;
 
     // ── UI state ───────────────────────────────────────────────────────────
+    bool     remoteOnline        = false;   // выносной пульт присылает HELLO
+    char     remoteFw[20]        = "";      // версия прошивки пульта (из HELLO)
+    uint8_t  remoteProtoMismatch = 0;       // пульт с другой версией протокола (её номер), 0 — нет
+    bool     otaActive           = false;   // идёт запись прошивки: команды движения не принимаются
+    uint32_t otaRestartAtMs      = 0;       // прошивка записана — перезагрузка в этот момент
+    uint32_t otaLastDataMs       = 0;       // последний кусок файла — оборванную загрузку бросаем
     bool     displaySleeping     = false;
     uint32_t lastInteractionMs   = 0;
     int8_t   editingPresetIdx    = -1;  // used in SERVICE_SYRINGE_EDIT

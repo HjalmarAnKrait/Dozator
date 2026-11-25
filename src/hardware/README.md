@@ -7,8 +7,10 @@
 и энкодер отключены (`USE_OLED`/`USE_ENCODER = 0`), управление — через веб.
 
 Пины — см. `HARDWARE.md §2.1`:
-- Мотор: STEP=D5/GPIO14, DIR=D0/GPIO16, EN=D3/GPIO0 (active-LOW, pull-up на D3).
-- Концевики TOP/A/B/BOT: D1/D2/D6/D7, все `INPUT_PULLUP`, замыкание на общий GND.
+- Мотор: STEP=D2/GPIO4, DIR=D1/GPIO5; EN драйвера на GND (всегда включён).
+- Концевики: TOP=D5/GPIO14, A=RX/GPIO3, B=D7/GPIO13, BOT=D6/GPIO12, все `INPUT_PULLUP`,
+  замыкание на общий GND.
+- Кнопка СТОП: D3/GPIO0 (boot-пин), `INPUT_PULLUP` на GND.
 
 Чтобы вернуться к симуляции — поставьте `USE_SIMULATED_HW = 1`.
 

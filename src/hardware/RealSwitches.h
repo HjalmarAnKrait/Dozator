@@ -15,8 +15,9 @@ public:
     SwitchSnapshot read() override;
 
 private:
-    Debounce m_top;
-    Debounce m_a;
-    Debounce m_b;
-    Debounce m_bot;
+    // Нажатие — быстро (каретка не проезжает концевик), отпускание — с полным дебаунсом.
+    Debounce m_top{SWITCH_PRESS_MS, SWITCH_DEBOUNCE_MS};
+    Debounce m_a{SWITCH_PRESS_MS, SWITCH_DEBOUNCE_MS};
+    Debounce m_b{SWITCH_PRESS_MS, SWITCH_DEBOUNCE_MS};
+    Debounce m_bot{SWITCH_PRESS_MS, SWITCH_DEBOUNCE_MS};
 };

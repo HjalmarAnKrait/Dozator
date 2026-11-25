@@ -11,10 +11,13 @@ class WebServer {
 public:
     void begin(ILimitSwitches* sw, Settings* settings, StateMachine* sm);
     WsBroadcaster& broadcaster() { return m_broadcaster; }
+    WsProtocol&    protocol()    { return m_protocol; }
 
 private:
     AsyncWebServer  m_server{80};
     AsyncWebSocket  m_ws{"/ws"};
     WsProtocol      m_protocol;
     WsBroadcaster   m_broadcaster;
+    bool            m_otaOk = false;   // текущая загрузка прошивки идёт без ошибок
+    String          m_otaError;
 };
