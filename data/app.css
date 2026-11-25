@@ -172,6 +172,8 @@ input[type=number].invalid {
   background: rgba(224, 71, 62, 0.12);
 }
 input[type=number].invalid:focus { border-color: var(--danger); }
+.mmss { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.mmss span { color: var(--muted); font-size: 15px; }
 select {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%238b93a3' d='M6 8 0 0h12z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
@@ -417,3 +419,15 @@ select {
 .preset-row label { margin: 0; }
 .preset-row input { width: 72px; font-size: 16px; padding: 9px; }
 .hint { display: block; color: var(--muted); font-size: 11px; margin-top: 4px; }
+
+/* Версии прошивок и ссылка на обновление (вкладка «Калибровка / сервис») */
+.fw-info {
+  background: var(--card2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-top: 16px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.fw-info a.btn { text-align: center; text-decoration: none; box-sizing: border-box; }

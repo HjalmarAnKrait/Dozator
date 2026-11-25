@@ -1,4 +1,6 @@
 #include "WsProtocol.h"
+#include "RemoteProtocol.h"
+#include "config.h"
 #include "../app/StateMachine.h"
 #include "../app/Calculations.h"
 #include "../storage/Settings.h"
@@ -6,6 +8,9 @@
 #include "version.h"
 #include <ArduinoJson.h>
 #include <string.h>
+
+static_assert(RP_SPEED_MIN == (int)MOTOR_SPS_MIN && RP_SPEED_MAX == (int)MOTOR_SPS_MAX,
+              "RP_SPEED_* в RemoteProtocol.h должны совпадать с MOTOR_SPS_* в config.h");
 
 void WsProtocol::begin(ILimitSwitches* sw, Settings* settings, StateMachine* sm) {
     m_switches = sw;
@@ -41,7 +46,7 @@ void WsProtocol::handleDebugSwitch(const char* sw, bool state) {
     if (idx != 255) m_switches->debugSetSwitch(idx, state);
 }
 
-void WsProtocol::handleDirectSet(const char* field, float value, AsyncWebSocketClient* client) {
+bool WsProtocol::handleDirectSet(const char* field, float value, AsyncWebSocketClient* client) {
     bool ok = true;
     if (strcmp(field, "doseTimeMin") == 0 && g_state.screen == Screen::CHARGED) {
         g_state.doseTimeMin = constrain(value, 0.3f, 20.0f);
@@ -50,7 +55,7 @@ void WsProtocol::handleDirectSet(const char* field, float value, AsyncWebSocketC
         if (idx >= 0 && idx < g_state.presetsCount) {
             g_state.syringeA.presetIdx = idx;
             g_state.syringeA.diameter  = g_state.presets[idx].diam;
-        }
+        } else ok = false;          // такого пресета нет — пульт покажет «НЕЛЬЗЯ СЕЙЧАС»
     } else if (strcmp(field, "syringeA.diameter") == 0 && g_state.screen == Screen::PARKED) {
         g_state.syringeA.diameter = constrain(value, 1.0f, 150.0f);
     } else if (strcmp(field, "syringeB.presetIdx") == 0 && g_state.screen == Screen::PARKED) {
@@ -58,7 +63,7 @@ void WsProtocol::handleDirectSet(const char* field, float value, AsyncWebSocketC
         if (idx >= 0 && idx < g_state.presetsCount) {
             g_state.syringeB.presetIdx = idx;
             g_state.syringeB.diameter  = g_state.presets[idx].diam;
-        }
+        } else ok = false;
     } else if (strcmp(field, "syringeB.diameter") == 0 && g_state.screen == Screen::PARKED) {
         g_state.syringeB.diameter = constrain(value, 1.0f, 150.0f);
     } else if (strcmp(field, "screwPitch") == 0) {
@@ -68,10 +73,10 @@ void WsProtocol::handleDirectSet(const char* field, float value, AsyncWebSocketC
         g_state.sleepTimeoutSec = (uint16_t)constrain(value, 5.0f, 300.0f);
         m_settings->markDirty();
     } else if (strcmp(field, "parkSpeed") == 0) {
-        g_state.parkSpeed = constrain(value, 50.0f, 15000.0f);
+        g_state.parkSpeed = constrain(value, MOTOR_SPS_MIN, MOTOR_SPS_MAX);
         m_settings->markDirty();
     } else if (strcmp(field, "chargeSpeed") == 0) {
-        g_state.chargeSpeed = constrain(value, 50.0f, 15000.0f);
+        g_state.chargeSpeed = constrain(value, MOTOR_SPS_MIN, MOTOR_SPS_MAX);
         m_settings->markDirty();
     } else if (strcmp(field, "fullPathSteps") == 0) {
         g_state.fullPathSteps = (int32_t)constrain(value, 0.0f, 5000000.0f);   // H, ручная правка
@@ -80,7 +85,7 @@ void WsProtocol::handleDirectSet(const char* field, float value, AsyncWebSocketC
         g_state.jogSteps = (int32_t)constrain(value, 1.0f, 100000.0f);
         m_settings->markDirty();
     } else if (strcmp(field, "jogSpeed") == 0) {
-        g_state.jogSpeed = constrain(value, 50.0f, 15000.0f);
+        g_state.jogSpeed = constrain(value, MOTOR_SPS_MIN, MOTOR_SPS_MAX);
         m_settings->markDirty();
     } else {
         ok = false;
@@ -90,13 +95,16 @@ void WsProtocol::handleDirectSet(const char* field, float value, AsyncWebSocketC
         char errBuf[64];
         snprintf(errBuf, sizeof(errBuf), "{\"type\":\"error\",\"msg\":\"field not allowed\"}");
         client->text(errBuf);
-        return;
     }
-    if (m_sm) m_sm->transitionTo(g_state.screen);  // re-broadcast state
+    if (!ok) return false;
+    // Только разослать новое состояние. НЕ transitionTo(g_state.screen): это повторный
+    // вход в состояние — он перезапускал дозирование/калибровку и сбрасывал сторожа.
+    if (m_sm) m_sm->requestBroadcast();
+    return true;
 }
 
-void WsProtocol::handleSetPreset(int index, float vol, float diam) {
-    if (index < 0 || index >= g_state.presetsCount) return;
+bool WsProtocol::handleSetPreset(int index, float vol, float diam) {
+    if (index < 0 || index >= g_state.presetsCount) return false;
     g_state.presets[index].vol  = constrain(vol,  1.0f, 500.0f);
     g_state.presets[index].diam = constrain(diam, 1.0f, 150.0f);
     // Если выбранный шприц ссылается на этот пресет — синхронизируем его диаметр.
@@ -104,20 +112,23 @@ void WsProtocol::handleSetPreset(int index, float vol, float diam) {
     if (g_state.syringeB.presetIdx == index) g_state.syringeB.diameter = g_state.presets[index].diam;
     if (m_settings) m_settings->markDirty();
     if (m_sm) m_sm->requestBroadcast();
+    return true;
 }
 
-void WsProtocol::handleCommand(const char* action) {
-    if (!m_sm) return;
+bool WsProtocol::handleCommand(const char* action) {
+    if (!m_sm) return false;
+    // Пишется прошивка: мотор стоит и должен стоять до перезагрузки.
+    if (g_state.otaActive && strcmp(action, "stop") != 0 && strcmp(action, "jog_stop") != 0) return false;
     // Фаза 1 сброса: из ЛЮБОГО состояния — немедленный СТОП (мотор стоит, держит позицию).
     if (strcmp(action, "stop") == 0) {
         g_state.stopCause = StopCause::MANUAL;
         m_sm->transitionTo(Screen::STOPPED);
-        return;
+        return true;
     }
     // Сброс одной командой (стоп + парковка) — оставлено для совместимости.
     if (strcmp(action, "reset") == 0) {
         m_sm->transitionTo(Screen::PARKING);
-        return;
+        return true;
     }
     // Парковка — по команде пользователя (из простоя / после цикла / после СТОП).
     if      (strcmp(action, "park") == 0 &&
@@ -155,6 +166,9 @@ void WsProtocol::handleCommand(const char* action) {
         m_sm->jogHold(+1);
     else if (strcmp(action, "jog_stop") == 0 && g_state.screen == Screen::DEBUG)
         m_sm->jogStop();
+    else
+        return false;   // команда не подходит к текущему состоянию
+    return true;
 }
 
 static const char* screenName(Screen s) {
@@ -216,6 +230,8 @@ size_t WsProtocol::buildStateJson(char* buf, size_t bufLen) {
     cycle["flowB"]       = calc::flowB();
     cycle["planVolA"]    = g_state.planVolA;   // плановый объём дозы (по расстоянию L2)
     cycle["planVolB"]    = g_state.planVolB;
+    cycle["doseVolA"]    = calc::doseVolA();   // объём дозы: в CHARGED — по ходу H − L
+    cycle["doseVolB"]    = calc::doseVolB();
     // Физически допустимый диапазон времени дозирования (мин) под текущие
     // объём/диаметр/шаг — пределы потока и оборотов мотора.
     calc::TimeRange tr   = calc::timeRangeMin();
@@ -247,6 +263,12 @@ size_t WsProtocol::buildStateJson(char* buf, size_t bufLen) {
     JsonObject ui = doc["ui"].to<JsonObject>();
     ui["displaySleeping"]  = g_state.displaySleeping;
     ui["editingPresetIdx"] = g_state.editingPresetIdx;
+    ui["remoteOnline"]     = g_state.remoteOnline;   // выносной пульт на связи
+    ui["remoteFw"]         = g_state.remoteFw;       // версия прошивки пульта
+    ui["remoteProto"]      = g_state.remoteProtoMismatch;   // ≠0 — пульт с другой версией протокола
+    ui["proto"]            = RP_VERSION;
+    ui["fw"]               = kFwVersion;             // версия прошивки дозатора
+    ui["ota"]              = g_state.otaActive;
     ui["calibPhase"]       = g_state.calibPhase;   // 0 = поиск дома, 1 = измерение хода
     ui["motorPos"]         = g_state.motorPos;     // позиция мотора (шагов) — для отладки
     switch (g_state.stopCause) {   // причина STOPPED (для сообщения в UI)
@@ -254,6 +276,7 @@ size_t WsProtocol::buildStateJson(char* buf, size_t bufLen) {
         case StopCause::STUCK_CHARGE: ui["stopCause"] = "stuck_charge"; break;
         case StopCause::STUCK_END:    ui["stopCause"] = "stuck_end";    break;
         case StopCause::CALIB_FAIL:   ui["stopCause"] = "calib_fail";   break;
+        case StopCause::BAD_CHARGE:   ui["stopCause"] = "bad_charge";   break;
         default:                      ui["stopCause"] = "manual";       break;
     }
 

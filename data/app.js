@@ -51,11 +51,11 @@ const RANGES = {
   'syringeB.diameter': { min: 1,   max: 150 },
   'doseTimeMin':       { min: 0.3, max: 20  },
   'screwPitch':        { min: 0.5, max: 20  },
-  'parkSpeed':         { min: 50,  max: 15000 },
-  'chargeSpeed':       { min: 50,  max: 15000 },
+  'parkSpeed':         { min: 50,  max: 6400 },
+  'chargeSpeed':       { min: 50,  max: 6400 },
   'fullPathSteps':     { min: 0,   max: 5000000 },
   'jogSteps':          { min: 1,   max: 100000 },
-  'jogSpeed':          { min: 50,  max: 15000 },
+  'jogSpeed':          { min: 50,  max: 6400 },
 };
 const DOSE_TIME_MIN = 0.3;   // жёсткий пол времени дозирования, мин
 const DOSE_TIME_MAX = 20;    // жёсткий потолок, мин
@@ -100,6 +100,16 @@ const KNOWN = ['IDLE', 'CALIBRATING', 'STOPPED', 'DEBUG', 'PARKING', 'PARKED', '
 
 // ─── Render ─────────────────────────────────────────────────────────────────
 function render(s) {
+  // 0) Выносной пульт: на связи или нет (ESP-NOW, присылает HELLO)
+  const remoteOn = !!s.ui?.remoteOnline;
+  const remoteProto = s.ui?.remoteProto || 0;   // пульт с другой версией протокола
+  $('remote-dot').className = 'conn-dot' + (remoteOn ? ' ok' : remoteProto ? ' warn' : '');
+  $('remote-text').textContent = remoteOn ? 'пульт на связи'
+    : remoteProto ? ('пульт: протокол v' + remoteProto + ', нужен v' + s.ui.proto + ' — обнови ' + (remoteProto < s.ui.proto ? 'пульт' : 'дозатор'))
+    : 'пульт не в сети';
+  if ($('fw-dozator')) $('fw-dozator').textContent = s.ui?.fw || '—';
+  if ($('fw-remote')) $('fw-remote').textContent = s.ui?.remoteFw || '—';
+
   // 1) Всегда: концевики (живые показания для отладки)
   renderSwitches(s.rawSwitches || s.switches || {});
 
@@ -207,6 +217,7 @@ function renderStopped(s) {
     stuck_charge: '⚠ Сбой: концевики A/B не прижались при зарядке. Проверь механику, затем «Парковка».',
     stuck_end:    '⚠ Сбой: не найден концевик BOT (конец) при калибровке. Проверь концевик, затем «Парковка».',
     calib_fail:   '⚠ Калибровка не удалась (ход слишком мал). Проверь концевики и повтори калибровку.',
+    bad_charge:   '⚠ Каретка после зарядки ниже хода H — дозировать нечего. Перекалибруй ход (Сервис), затем «Парковка».',
   };
   const el = $('stopped-msg');
   if (el) el.textContent = map[cause] || map.manual;
@@ -224,13 +235,19 @@ function renderParked(s) {
 
 function renderCharged(s) {
   const c = s.cycle || {};
-  setVal($('dose-time'), fmt(c.doseTimeMin));
+  // Время — минуты и секунды отдельно; пока одно из полей в фокусе, оба не трогаем.
+  const tSec = Math.round((c.doseTimeMin || 0) * 60);
+  const tm = $('dose-time-m'), ts = $('dose-time-s');
+  if (document.activeElement !== tm && document.activeElement !== ts) {
+    tm.value = Math.floor(tSec / 60); ts.value = String(tSec % 60).padStart(2, '0');
+    tm.classList.remove('invalid'); ts.classList.remove('invalid');
+  }
   $('flow-a').textContent = fmt(c.flowA);
   $('flow-b').textContent = fmt(c.flowB);
   // Подпись с физически допустимым диапазоном под текущие шприцы/шаг.
   $('dose-time-label').textContent = (c.timeMax > 0)
-    ? `Время дозирования, мин (${fmtRange({ min: Math.max(c.timeMin, DOSE_TIME_MIN), max: Math.min(c.timeMax, DOSE_TIME_MAX) })})`
-    : 'Время дозирования, мин';
+    ? `Время дозирования (${fmtMMSS(Math.ceil(Math.max(c.timeMin, DOSE_TIME_MIN) * 60))}–${fmtMMSS(Math.floor(Math.min(c.timeMax, DOSE_TIME_MAX) * 60))})`
+    : 'Время дозирования';
 
   // ПУСК только если откалибровано (задан полный ход H).
   const H = s.settings?.fullPathSteps || 0;
@@ -388,17 +405,21 @@ const HELP = {
     <b>Что происходит:</b><br>
     1. Каретка едет <b>вверх до концевика TOP</b> (точка «дом»). Позиция обнуляется в 0.<br>
     2. Затем едет <b>вниз до концевика BOT</b> (конец хода), считая шаги. Концевики A/B при этом игнорируются.<br>
-    3. Число шагов от TOP до BOT = <b>H</b> (полный ход). Сохраняется в память.<br><br>
+    3. У BOT отъезжает на 2 мм и подходит ещё раз медленно (0,5 мм/с) — так точка срабатывания
+    не зависит от скорости парковки.<br>
+    4. Число шагов от TOP до BOT минус 0,5 мм = <b>H</b> (полный ход). Сохраняется в память.
+    Запас нужен, чтобы доза заканчивалась по ходу, а BOT оставался страховкой.<br><br>
     <b>Бизнес-логика дозы:</b> при зарядке каретка опускается до прижатия A и B — это позиция
     заряда <b>L</b> (зависит от длины штоков/загрузки). Остаток до конца — <b>L2 = H − L</b>.
     Это и есть рабочий ход дозы. Задаёшь время t → скорость <b>V = L2 / t</b>, едем от заряда до конца за это время.<br><br>
-    <b>Условия:</b> рабочие концевики <b>TOP и BOT</b>, шприцы сняты (идёт весь ход). Если за ~2 мин
-    концевик не найден — стоп с ошибкой. H хранится до следующей калибровки.`,
+    <b>Условия:</b> рабочие концевики <b>TOP и BOT</b>, шприцы сняты (идёт весь ход). Если концевик
+    не найден на 200 мм хода (около 2 мин при скорости парковки 0,2 см/с) — стоп с ошибкой. H хранится до следующей калибровки.`,
   charge: `<b>Зарядка</b><br><br>
     Каретка плавно опускается, пока не прижмутся <b>оба</b> концевика A и B (штоки легли на плунжеры).
     Эта позиция = «заряд» (L). Скорость — настройка «Скорость зарядки». Доступна только после калибровки.`,
-  doseTimeMin: `<b>Время дозирования, мин</b><br><br>
-    За сколько минут выдавить остаток хода (заряд→конец, L2). Влияет только на скорость мотора: V = L2 / время.<br>
+  doseTimeMin: `<b>Время дозирования, мин:сек</b><br><br>
+    За сколько выдавить остаток хода (заряд→конец, L2). Влияет только на скорость мотора: V = L2 / время.<br>
+    Минуты и секунды вводятся отдельно; секунды больше 59 переносятся в минуты.<br>
     Диапазон под полем зависит от объёма/диаметра/шага (пределы потока и оборотов мотора).`,
   screwPitch: `<b>Шаг винта (ход/lead), мм/об</b><br><br>
     На сколько мм каретка проходит за <b>один оборот мотора</b>. Не путать с шагом резьбы!<br>
@@ -416,12 +437,14 @@ const HELP = {
     Правь вручную только если знаешь точное значение. <b>0 = не откалибровано</b> (зарядка и ПУСК заблокированы).<br>
     Рядом справочно показано то же значение в шагах мотора.`,
   jog: `<b>Ручной режим (отладка)</b><br><br>
-    Ручное движение мотора для проверки механики, <b>игнорируя концевики</b>. Доступен из любого состояния
+    Ручное движение мотора для проверки механики. Доступен из любого состояния
     (кнопка «🔧 Ручной режим» вверху).<br><br>
     <b>Короткое нажатие</b> ▲/▼ — сдвиг на «Расстояние за нажатие».<br>
     <b>Удержание</b> ▲/▼ — движение, пока держишь кнопку; отпустил — остановилось.<br>
     «Расстояние за нажатие» и «Скорость» задаются в <b>см</b> (справа — эквивалент в шагах). Настройки сохраняются.<br>
-    ⚠️ Концевики не остановят — следи за кареткой. «Выход» — переводит в простой (IDLE).`,
+    Концевик TOP останавливает движение вверх, BOT — вниз; от нажатого концевика уехать можно.
+    Если связь с телефоном пропала во время удержания, мотор встанет сам примерно через секунду.
+    «Выход» — переводит в простой (IDLE).`,
   syringe: `<b>Шприц A / B</b><br><br>
     Объём (пресет) и диаметр шприца. Диаметр <b>не влияет на движение</b> (оно по расстоянию), нужен только
     для оценки <b>объёма в мл</b> (площадь × ход). Оба шприца двигаются вместе одной кареткой.`,
@@ -499,6 +522,36 @@ function bindNum(id, field) {
   });
 }
 
+// Время дозы: два поля (мин, сек) → одно значение doseTimeMin в минутах, как в протоколе.
+function bindDoseTime() {
+  const m = $('dose-time-m'), s = $('dose-time-s');
+  const read = () => {
+    if (m.value === '' && s.value === '') return null;
+    const mm = m.value === '' ? 0 : parseInt(m.value, 10), ss = s.value === '' ? 0 : parseInt(s.value, 10);
+    if (!isFinite(mm) || !isFinite(ss) || mm < 0 || ss < 0) return null;
+    return mm * 60 + ss;                                        // секунды
+  };
+  const rangeSec = () => { const r = getRange('doseTimeMin'); return { min: Math.ceil(r.min * 60), max: Math.floor(r.max * 60) }; };
+  const show = (sec) => { m.value = Math.floor(sec / 60); s.value = String(sec % 60).padStart(2, '0'); };
+  const onInput = () => {
+    const sec = read(), r = rangeSec();
+    const ok = sec !== null && sec >= r.min && sec <= r.max;
+    markInvalid(m, !ok && sec !== null); markInvalid(s, !ok && sec !== null);
+    if (ok) send({ type: 'direct_set', field: 'doseTimeMin', value: sec / 60 });
+  };
+  const onBlur = () => {
+    // Ушли из обоих полей — поджимаем в диапазон и нормализуем (75 сек → 1:15).
+    setTimeout(() => {
+      if (document.activeElement === m || document.activeElement === s) return;
+      const sec = read(); if (sec === null) return;
+      const r = rangeSec(), v = Math.min(r.max, Math.max(r.min, sec));
+      show(v); markInvalid(m, false); markInvalid(s, false);
+      send({ type: 'direct_set', field: 'doseTimeMin', value: v / 60 });
+    }, 0);
+  };
+  for (const el of [m, s]) { el.addEventListener('input', onInput); el.addEventListener('blur', onBlur); }
+}
+
 // Селекты — по change (частичного ввода нет).
 $('sel-a').addEventListener('change', (e) =>
   send({ type: 'direct_set', field: 'syringeA.presetIdx', value: +e.target.value }));
@@ -507,7 +560,7 @@ $('sel-b').addEventListener('change', (e) =>
 
 bindNum('diam-a',    'syringeA.diameter');
 bindNum('diam-b',    'syringeB.diameter');
-bindNum('dose-time', 'doseTimeMin');
+bindDoseTime();
 bindNum('set-pitch', 'screwPitch');
 bindCm('set-parkspeed', 'parkSpeed');
 bindCm('set-chargespeed', 'chargeSpeed');
@@ -518,21 +571,25 @@ bindCm('set-jogspeed', 'jogSpeed');
 function bindJog(btnId, dir) {
   const el = $(btnId);
   if (!el) return;
-  let timer = null, held = false, active = false;
+  let timer = null, held = false, active = false, repeat = null;
   const HOLD_MS = 250;
+  const REPEAT_MS = 300;   // прошивка остановит мотор, если повтор не придёт за ~1 с (deadman)
   el.addEventListener('pointerdown', (e) => {
     e.preventDefault();
     try { el.setPointerCapture(e.pointerId); } catch {}
     active = true; held = false;
     timer = setTimeout(() => {
       held = true;
-      send({ type: 'command', action: dir < 0 ? 'jog_hold_up' : 'jog_hold_down' });
+      const act = dir < 0 ? 'jog_hold_up' : 'jog_hold_down';
+      send({ type: 'command', action: act });
+      repeat = setInterval(() => send({ type: 'command', action: act }), REPEAT_MS);
     }, HOLD_MS);
   });
   const finish = () => {
     if (!active) return;
     active = false;
     if (timer) { clearTimeout(timer); timer = null; }
+    if (repeat) { clearInterval(repeat); repeat = null; }
     send({ type: 'command', action: held ? 'jog_stop' : (dir < 0 ? 'jog_up' : 'jog_down') });
     held = false;
   };

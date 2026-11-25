@@ -24,9 +24,37 @@ float volB() {
     return g_state.presets[idx].vol;
 }
 
+// Оставшийся ход дозы H − L, мм (≤ 0 — не определён).
+static float remainingDoseMm() {
+    if (g_state.fullPathSteps <= 0) return 0.0f;
+    int32_t L2 = g_state.fullPathSteps - g_state.motorPos;
+    if (L2 <= 0) return 0.0f;
+    return L2 * (g_state.screwPitch / (float)FULL_STEPS_PER_REV);
+}
+
+float doseVolA() {
+    if (g_state.screen == Screen::CHARGED) {
+        float mm = remainingDoseMm();
+        if (mm > 0.0f) return distToVolumeMl(g_state.syringeA.diameter, mm);
+    }
+    if ((g_state.screen == Screen::DOSING || g_state.screen == Screen::DONE) && g_state.planVolA > 0.0f)
+        return g_state.planVolA;
+    return volA();
+}
+
+float doseVolB() {
+    if (g_state.screen == Screen::CHARGED) {
+        float mm = remainingDoseMm();
+        if (mm > 0.0f) return distToVolumeMl(g_state.syringeB.diameter, mm);
+    }
+    if ((g_state.screen == Screen::DOSING || g_state.screen == Screen::DONE) && g_state.planVolB > 0.0f)
+        return g_state.planVolB;
+    return volB();
+}
+
 float flowA() {
     if (g_state.doseTimeMin <= 0.0f) return 0.0f;
-    return volA() / g_state.doseTimeMin;
+    return doseVolA() / g_state.doseTimeMin;
 }
 
 float screwSpeedMmPerMin() {
@@ -52,23 +80,23 @@ float distToVolumeMl(float diameterMm, float distMm) {
 }
 
 TimeRange timeRangeMin() {
-    float vA = volA();
+    float vA = doseVolA();
     if (vA <= 0.0f) return {0.0f, 0.0f};
 
-    // Предел по потоку: t = объём / поток.
+    // Предел по потоку: t = объём / поток. Нижнего предела потока нет — малую дозу
+    // тоже можно растянуть до DOSE_TIME_MAX_MIN.
     float tMin = vA / MAX_FLOW_MLPM;   // мин. время при макс. потоке
-    float tMax = vA / MIN_FLOW_MLPM;   // макс. время при мин. потоке
+    float tMax = DOSE_TIME_MAX_MIN;
 
-    // Предел по оборотам мотора:
-    //   rpm = vScrew/pitch,  vScrew = vA*1000/(t*sA)  =>  t = vA*1000/(rpm*sA*pitch)
+    // Предел по скорости мотора. Ход дозы в шагах: объём → мм (÷ площадь) → обороты (÷ шаг винта).
+    //   Быстрее MOTOR_SPS_MAX мотор срывается; медленнее DOSE_SPS_MIN не едем.
+    //   Нижнего предела оборотов у шагового мотора нет: длинную дозу ограничивает DOSE_TIME_MAX_MIN.
     float sA = area(g_state.syringeA.diameter);
     if (sA > 0.0f && g_state.screwPitch > 0.0f) {
-        float tRpmMax = vA * 1000.0f / (MOTOR_RPM_MAX * sA * g_state.screwPitch);  // при макс. rpm
-        float tRpmMin = vA * 1000.0f / (MOTOR_RPM_MIN * sA * g_state.screwPitch);  // при мин. rpm
-        tMin = max(tMin, tRpmMax);
-        tMax = min(tMax, tRpmMin);
+        float steps = vA * 1000.0f / sA / g_state.screwPitch * FULL_STEPS_PER_REV;
+        tMin = max(tMin, steps / MOTOR_SPS_MAX / 60.0f);
+        tMax = min(tMax, steps / DOSE_SPS_MIN / 60.0f);
     }
-
     if (tMin > tMax) tMin = tMax;
     return {tMin, tMax};
 }
